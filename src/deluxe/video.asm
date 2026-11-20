@@ -215,6 +215,28 @@ dx_fill:
     call dx_tileset
     jr .done
 .names:
+    ifdef POLISH
+    ; Full-field zero is the common stage/retry case; retain the general
+    ; writer for small fills (e.g. clearing a message).
+    ld a,h
+    cp $34
+    jr nz,.normal_fill
+    ld a,l
+    cp $40
+    jr nz,.normal_fill
+    ld a,b
+    cp 2
+    jr nz,.normal_fill
+    ld a,c
+    cp $c0
+    jr nz,.normal_fill
+    ld a,(dx_fillbyte)
+    or a
+    jr nz,.normal_fill
+    call p_clear_field
+    jr .done
+.normal_fill:
+    endif
     ld a,(dx_fillbyte)
     call dx_byte
     inc hl
@@ -381,6 +403,19 @@ dx_tileset:
 .address:
     pop af
     push af
+    ifdef POLISH
+    cp 17
+    jr nz,.whole_sheet
+    ; The card draws only blank tiles, a sprite, digits and lettering.
+    ; Tile zero is blank in every sheet. Transfer $d8..$ff (5 bursts).
+    ld hl,$1b00
+    di
+    call dx_address
+    ld hl,$bb00                ; upper half of page 11 + $1b00
+    ld de,$050b
+    jr .burst
+.whole_sheet:
+    endif
     srl a
     add a,3
     ld e,a
@@ -419,6 +454,13 @@ dx_tileset:
     ld hl,dx_palette+1
     ld bc,$1fbe
     otir
+    ifdef POLISH
+    ld a,(p_font_loaded)
+    or a
+    jr nz,.palette_done
+    inc a
+    ld (p_font_loaded),a
+    endif
     ld hl,dx_hud_font         ; fixed ROM source and VRAM destination both $3000
     call dx_address
     ld bc,2048
@@ -430,6 +472,7 @@ dx_tileset:
     ld a,b
     or c
     jr nz,.hud_tiles
+.palette_done:
     ei
     ret
 ; SMS CRAM: --BBGGRR. Sky, pine, leaf, sand, copper and cloud whites.

@@ -35,8 +35,12 @@ effect_pointers:
     dw effect_02
     endif
     dw effect_03
+    ifdef POLISH
+    dw p_break,p_bump
+    else
     dw effect_04
     dw effect_05
+    endif
     dw effect_06
     ifdef GENERIC
     dw generic_coin_chime
@@ -44,8 +48,12 @@ effect_pointers:
     dw effect_07
     endif
     dw effect_08
+    ifdef POLISH
+    dw p_extra_life,p_contact
+    else
     dw effect_09
     dw effect_10
+    endif
     dw effect_11
     dw effect_12
     dw effect_13

@@ -14,6 +14,14 @@ have new PSG effects. Enemies and the block-coin popup now scroll together
 with the scenery. Version 0.3.1 widens selected takeoffs and landings by one
 or two tiles without changing the controls. [Changes, build and checks](docs/generic.md).
 
+## Try the Generic polish build
+
+[Download the playtest ROM](releases/superboy-generic-polish-rc1.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
+
+This opt-in build adds braking on reversals, press-only firing, brighter
+block details, and four new impact/reward sounds. Starting 1-1 takes 20
+frames instead of 38. The stable release above is unchanged.
+
 ## Play Deluxe v0.2
 
 [Standalone IPS](releases/superboy-deluxe-v0.2.ips) · [1-1 gameplay with sound](docs/deluxe-preview.mp4) · [Build and SMB import guide](docs/deluxe.md)

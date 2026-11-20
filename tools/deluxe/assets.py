@@ -150,6 +150,19 @@ def main():
             pal = [v if v not in (0,sky) else 0 for v in (bg,fg)]
             addr = sym['shared.background_patterns']+8*tile
             pix = [[pal[(b>>x)&1] for x in reversed(range(8))] for b in core[addr:addr+8]]
+            if 'p_clear_field' in sym and 0 < sheet < 17:
+                # Give rock and brick faces a lit lip, without changing their
+                # silhouettes or replacing the Super Boy motifs. In caves
+                # use blue-grey rather than the outdoor copper highlight.
+                if tile in (0x35, 0x36, 0x70, 0x71, 0x72, 0x73):
+                    highlight = 10 if 6 in pal else 14
+                    pix = [[highlight if y and c == pal[0] and pix[y-1][x] == pal[1]
+                            else c for x,c in enumerate(row)] for y,row in enumerate(pix)]
+                # The question mark uses true dark ink even on night sheets
+                # where the legacy converter mapped its ink to backdrop zero.
+                if 0x28 <= tile <= 0x2b:
+                    pix = [[1 if b >> x & 1 else 11 for x in reversed(range(8))]
+                           for b in core[addr:addr+8]]
             start = 3*BANK+8192*sheet+32*tile
             rom[start:start+32] = replacements.get(tile) or pack(pix)
     # Pre-bake a 4-pose spin for each stage's two stacked coin tiles.

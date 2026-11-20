@@ -14,6 +14,9 @@
     ifdef GENERIC
     include "generic/actors.asm"
     include "generic/feel.asm"
+    ifdef POLISH
+    include "playtest/polish.asm"
+    endif
     endif
     ifdef SMB_ASSETS
     include "deluxe/music.asm"

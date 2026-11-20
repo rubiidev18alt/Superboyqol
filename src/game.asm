@@ -73,7 +73,11 @@ title_screen_entry:
     ld (hl),$05
     ld de,shared.title_screen
     ld b,$20
+    ifdef POLISH
+    call p_screen_columns
+    else
     call load_screen_columns
+    endif
     call upload_playfield
     ld hl,stage_colours
     ld b,(hl)
@@ -872,7 +876,11 @@ init_stage_01:
 
 loc_46ad:
     ld b,$20
+    ifdef POLISH
+    call p_prime_columns
+    else
     call prime_scroll_columns
+    endif
     ld hl,scroll_column
     ld (hl),$1f
     inc hl
@@ -948,7 +956,11 @@ play_stage_intro:
     call vdp_copy
     ld de,shared.stage_screen_b
     ld b,$20
+    ifdef POLISH
+    call p_screen_columns
+    else
     call load_screen_columns
+    endif
     call upload_playfield
     xor a
     call start_music
@@ -1000,12 +1012,20 @@ init_stage_03:
 loc_47b1:
     ld de,shared.stage_screen_b
     ld b,$12
+    ifdef POLISH
+    call p_screen_columns
+    else
     call load_screen_columns
+    endif
 
 loc_47b9:
     ld de,current_layout
     ld b,$0e
+    ifdef POLISH
+    call p_prime_columns
+    else
     call prime_scroll_columns
+    endif
     ld hl,scroll_column
     ld (hl),$0e
     inc hl
@@ -1034,7 +1054,11 @@ init_stage_05:
 loc_47f4:
     ld de,shared.stage_screen_a
     ld b,$12
+    ifdef POLISH
+    call p_screen_columns
+    else
     call load_screen_columns
+    endif
     ld a,$a0
     ld (player_y),a
     jp loc_47b9
@@ -1157,7 +1181,11 @@ update_player:
     ld c,(hl)
     ld (hl),a
     xor c
+    ifdef POLISH
+    and b                    ; fire on button 2 press, never on release
+    else
     ld a,b
+    endif
     jr z,loc_491c
     ld a,($e080)
     and a
@@ -1203,7 +1231,11 @@ loc_4935:
     ifdef QOL
     ld a,(ix+1)
     ifdef GENERIC
+    ifdef POLISH
+    call p_accel_left
+    else
     call generic_accelerate
+    endif
     else
     call shared.accelerate
     endif
@@ -1231,7 +1263,11 @@ loc_4950:
     ifdef QOL
     ld a,(ix+2)
     ifdef GENERIC
+    ifdef POLISH
+    call p_accel_right
+    else
     call generic_accelerate
+    endif
     else
     call shared.accelerate
     endif
@@ -1996,7 +2032,11 @@ loc_4de2:
     push bc
     push de
     ld b,$01
+    ifdef POLISH
+    call p_screen_columns
+    else
     call load_screen_columns
+    endif
     call upload_playfield
     ld hl,(player_y)
     dec h

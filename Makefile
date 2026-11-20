@@ -17,6 +17,7 @@ verify: $(ROM)
 
 clean:
 	$(RM) $(ROM) $(QOL_ROM) build/superboy-qol.ips build/replay build/superboy.sym build/qol.sym
+	$(RM) build/superboy-polish.sms build/polish.core build/polish.sym
 	$(RM) build/superboy-generic.sms build/generic.core build/generic.sym
 	$(RM) build/superboy-deluxe*.sms build/deluxe.core build/deluxe.sym build/import.core build/import.sym build/superboy-deluxe.ips
 	$(RM) -r build/maps build/qol-maps
@@ -106,3 +107,19 @@ generic-test: generic build/replay
 	build/replay build/superboy-generic.sms --generic-actors
 	build/replay build/superboy-generic.sms --idle
 	build/replay build/superboy-generic.sms tests/generic-all-stages.pad
+
+# Opt-in candidate; generic and the published v0.3.1 ROM remain stable.
+.PHONY: polish polish-test
+polish: build/superboy-polish.sms
+build/superboy-polish.sms: $(DX_SOURCES) $(wildcard src/generic/*.asm src/playtest/*.asm) Makefile
+	mkdir -p build
+	$(SJASMPLUS) -DQOL -DDELUXE -DGENERIC -DPOLISH --raw=build/polish.core --sym=build/polish.sym src/superboy.asm
+	python3 tools/deluxe/assets.py build/polish.core build/polish.sym $@
+
+polish-test: polish build/replay
+	build/replay build/superboy-polish.sms --qol-controls
+	build/replay build/superboy-polish.sms --deluxe-camera
+	build/replay build/superboy-polish.sms --polish-opening
+	build/replay build/superboy-polish.sms --generic-actors
+	build/replay build/superboy-polish.sms --idle
+	build/replay build/superboy-polish.sms tests/polish-all-stages.pad

@@ -251,8 +251,43 @@ static int generic_actors(const uint8_t *ram) {
     return shown < 16 || rise < 24 || travel < 24 || first_enemy-prev_enemy < 6;
 }
 
+/* Read-only A/B benchmark. Validate the full title and first gameplay window,
+ * including the left edge retained by the stage primer, not just the HUD. */
+static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
+    const unsigned jump = 1u << RETRO_DEVICE_ID_JOYPAD_B;
+    hold(0, 140);
+    for (unsigned x = 0; x < 32; ++x) for (unsigned y = 0; y < 22; ++y)
+        if (ram[0x83f+32*y+x] != rom[0x8c0e + 22*x+y]) return 1;
+    unsigned elapsed = 0;
+    do {
+        hold(elapsed ? 0 : jump, 1);
+        if (++elapsed > 120) return 1;
+    } while (ram[0x376] != 10);
+    for (unsigned x = 0; x < 32; ++x) for (unsigned y = 0; y < 22; ++y) {
+        unsigned col = rom[0x5e8a+1+x];
+        if (ram[0x83f+32*y+x] != rom[0x7700+22*col+y]) return 1;
+    }
+    hold(0, 60);
+    hold((1u << RETRO_DEVICE_ID_JOYPAD_RIGHT) | (1u << RETRO_DEVICE_ID_JOYPAD_A), 28);
+    if (ram[0x23b] != 32) return 1;
+    unsigned start = ram[0x36d], peak = start, at = start, reverse = 0, overlap = 0;
+    for (unsigned t = 1; t <= 30; ++t) {
+        hold(1u << RETRO_DEVICE_ID_JOYPAD_LEFT, 1);
+        unsigned x = ram[0x36d];
+        if (x > peak) peak = x;
+        if (!reverse && x < at) reverse = t;
+        if (ram[0x23a] && ram[0x23b]) ++overlap;
+        at = x;
+    }
+    printf("Start to 1-1: %u frames. Run reversal: %u px braking travel, "
+           "first leftward pixel on frame %u, %u frames of opposing speeds.\n",
+           elapsed, peak-start, reverse, overlap);
+    return !reverse || (expect_polish && (elapsed > 24 || overlap || peak == start ||
+                                           peak-start > 10 || reverse > 12));
+}
+
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera|--generic-actors\n", argv[0]); return 2; }
+    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera|--generic-actors|--opening|--polish-opening\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[262144];
@@ -265,8 +300,11 @@ int main(int argc, char **argv) {
     bool controls = !strcmp(argv[2], "--qol-controls");
     bool camera = !strcmp(argv[2], "--deluxe-camera");
     bool actors = !strcmp(argv[2], "--generic-actors");
-    FILE *movie = idle || controls || camera || actors ? NULL : fopen(argv[2], "r");
-    if (!idle && !controls && !camera && !actors && !movie) { perror(argv[2]); return 1; }
+    bool polish = !strcmp(argv[2], "--polish-opening");
+    bool bench = polish || !strcmp(argv[2], "--opening");
+    bool test = idle || controls || camera || actors || bench;
+    FILE *movie = test ? NULL : fopen(argv[2], "r");
+    if (!test && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
     retro_set_video_refresh(video);
     retro_set_audio_sample(audio);
@@ -278,7 +316,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
+                 (bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
     retro_unload_game();
     retro_deinit();
     return result;
