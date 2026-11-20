@@ -7,7 +7,8 @@
 #include "libretro.h"
 
 static uint16_t pad;
-static bool picture;
+static bool picture, check_scroll;
+static uint16_t floor_line[160], captions[192];
 static bool environment(unsigned cmd, void *data) {
     if (cmd == RETRO_ENVIRONMENT_GET_INPUT_BITMASKS) return true;
     if (cmd == RETRO_ENVIRONMENT_SET_PIXEL_FORMAT)
@@ -31,11 +32,16 @@ static void video(const void *d, unsigned w, unsigned h, size_t pitch) {
     /* Sample the playfield, not just the HUD. Stage progression in RAM is
      * not enough: a wrong VDP initialization can leave the picture blank. */
     picture = false;
-    if (!d || h <= 24 || w == 0) return;
-    uint16_t first = *(const uint16_t *)d;
+    if (!d || h <= 24 || w < 32) return;
+    if (check_scroll && w == 256 && h == 192) {
+        memcpy(floor_line, (const uint8_t *)d + pitch * 187 + 2 * 40, sizeof floor_line);
+        memcpy(captions, (const uint8_t *)d + pitch * 4 + 2 * 24, sizeof captions);
+    }
+    const uint16_t *first_row = (const uint16_t *)((const uint8_t *)d + 24 * pitch);
+    uint16_t first = first_row[16];
     for (unsigned y = 24; y < h; y += 4) {
         const uint16_t *row = (const uint16_t *)((const uint8_t *)d + y * pitch);
-        for (unsigned x = 0; x < w; x += 4) {
+        for (unsigned x = 16; x < w; x += 4) {
             if (row[x] != first) { picture = true; return; }
         }
     }
@@ -164,19 +170,45 @@ static int qol_controls(const uint8_t *ram) {
     return 0;
 }
 
+/* Measure displayed pixels, not just camera RAM: when walking the patterned
+ * floor moves left by exactly one pixel while the captions remain fixed. */
+static int deluxe_camera(const uint8_t *ram) {
+    check_scroll = true;
+    hold(0, 140); hold(1u << RETRO_DEVICE_ID_JOYPAD_B, 1); hold(0, 120);
+    if (!picture || ram[0x376] != 10 || ram[0x383]) return 1;
+    uint16_t hud[192], old[160];
+    memcpy(hud, captions, sizeof hud);
+    if (!memcmp(hud, hud+1, sizeof hud-sizeof *hud)) return 1;
+    unsigned steps = 0, phases = 0;
+    for (unsigned i = 0; i < 176; ++i) {
+        memcpy(old, floor_line, sizeof old);
+        hold(1u << RETRO_DEVICE_ID_JOYPAD_RIGHT, 1);
+        if (memcmp(hud, captions, sizeof hud)) return 1;
+        if (memcmp(floor_line, old, sizeof old) &&
+            !memcmp(floor_line, old+1, sizeof old-sizeof *old)) {
+            ++steps;
+            phases |= 1u << (ram[0xb11] & 7);
+        }
+    }
+    printf("Measured %u single-pixel frames; fine-scroll phases %02x; HUD fixed.\n", steps, phases);
+    return steps < 48 || phases != 255;
+}
+
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls\n", argv[0]); return 2; }
+    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
-    static uint8_t bytes[49152];
-    if (fread(bytes, 1, sizeof bytes, rom) != sizeof bytes || fgetc(rom) != EOF) {
-        fprintf(stderr, "Expected a 48 KiB ROM\n"); return 1;
+    static uint8_t bytes[262144];
+    size_t size = fread(bytes, 1, sizeof bytes, rom);
+    if ((size != 49152 && size != sizeof bytes) || fgetc(rom) != EOF) {
+        fprintf(stderr, "Expected a 48 or 256 KiB ROM\n"); return 1;
     }
     fclose(rom);
     bool idle = !strcmp(argv[2], "--idle");
     bool controls = !strcmp(argv[2], "--qol-controls");
-    FILE *movie = idle || controls ? NULL : fopen(argv[2], "r");
-    if (!idle && !controls && !movie) { perror(argv[2]); return 1; }
+    bool camera = !strcmp(argv[2], "--deluxe-camera");
+    FILE *movie = idle || controls || camera ? NULL : fopen(argv[2], "r");
+    if (!idle && !controls && !camera && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
     retro_set_video_refresh(video);
     retro_set_audio_sample(audio);
@@ -184,11 +216,11 @@ int main(int argc, char **argv) {
     retro_set_input_poll(poll);
     retro_set_input_state(input);
     retro_init();
-    struct retro_game_info game = { argv[1], bytes, sizeof bytes, NULL };
+    struct retro_game_info game = { argv[1], bytes, size, NULL };
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
+                 (camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
     retro_unload_game();
     retro_deinit();
     return result;

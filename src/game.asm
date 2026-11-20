@@ -361,7 +361,11 @@ loc_4253:
     ld (frame_ready),a
     call tick_stage_clock
     call update_player
+    ifdef DELUXE
+    call dx_animate
+    else
     call animate_hit_block
+    endif
     call sub_5014
     call upload_other_sprites
     call update_player
@@ -798,7 +802,11 @@ load_castle_patterns:
     jp copy_even_pattern_banks
 
 sub_4627:
+    ifdef SMB_ASSETS
+    call dx_script_room
+    else
     ld hl,shared.patterns_a26e
+    endif
     ld de,$1340
     ld bc,$0080
     call vdp_copy_keep_hl_bc
@@ -866,7 +874,11 @@ loc_46ba:
     inc a
     ld (scroll_request),a
     call load_stage_colours
+    ifdef DELUXE
+    call dx_prime
+    else
     call scroll_one_column
+    endif
     ld a,$0a
     ld (player_x),a
     ld (actors_enabled),a
@@ -1419,6 +1431,11 @@ loc_4aa9:
     ld a,h
     cp $64
     jr c,loc_4ac0
+    ifdef DELUXE
+    call dx_camera_step
+    jr loc_4ac3
+    ds $4ac0 - $, 0
+    else
     ld a,($e244)
     inc a
     ld ($e244),a
@@ -1427,6 +1444,7 @@ loc_4aa9:
     jr nz,loc_4ac3
     ld (scroll_request),a
     jr loc_4ac3
+    endif
 
 loc_4ac0:
     ld (player_y),hl
@@ -2033,7 +2051,11 @@ loc_4e71:
     ld (scroll_at_end),a
     inc a
     ld (scroll_request),a
+    ifdef DELUXE
+    call dx_rebuild
+    else
     call scroll_one_column
+    endif
     ld de,$0601
     call set_sprite_pair_colours
     ld hl,$4080
@@ -3834,7 +3856,11 @@ loc_58e2:
     ld a,(suppress_map_upload)
     and a
     ret nz
+    ifdef DELUXE
+    call dx_new_column
+    else
     call upload_playfield
+    endif
     jp spawn_for_column
 
 unpack_column:
@@ -4005,6 +4031,11 @@ text_time:
     abyte $a1 "TIME"
 
 draw_hud:
+    ifdef DELUXE
+    call dx_hud
+    jp draw_coins
+    ds $5aaa - $, 0
+    else
     call draw_score
     call draw_coins
     ld hl,text_score
@@ -4023,6 +4054,7 @@ draw_hud:
     ld de,$341a
     ld bc,$0004
     jp vdp_copy
+    endif
 
 switch_sprite_bank:
     ld c,$06
@@ -4483,7 +4515,11 @@ irq_update:
     xor a
     cpl
     ld (frame_ready),a
+    ifdef SMB_ASSETS
+    call dx_song_tick
+    else
     call shared.sound_tick
+    endif
     call read_controller
     ld a,(actors_enabled)
     and a

@@ -1,2 +1,6 @@
 /build/
 __pycache__/
+
+# Local import inputs and Python environment
+*.nes
+.venv/

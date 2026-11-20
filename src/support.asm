@@ -137,7 +137,11 @@ vdp_copy_keep_hl_bc:
     ret
 
 start_music:
+    ifdef SMB_ASSETS
+    call dx_song_init
+    else
     call shared.sound_init
+    endif
     xor a
     ld hl,music_fade
     ld (hl),a
@@ -394,6 +398,13 @@ stage_data_16:  ; World 4-4
     db $ff
 
 ; B = value, C = VDP register.
+    ifdef DELUXE
+vdp_write_register: jp dx_register
+vdp_write_byte:     jp dx_byte
+vdp_fill:           jp dx_fill
+vdp_copy:           jp dx_copy
+    ds $7645 - $, 0
+    else
 vdp_write_register:
     ld a,b
     di
@@ -456,6 +467,7 @@ loc_763b:
     jr nz,loc_763b
     ret
 
+    endif
 psg_write:
     push af
     push hl

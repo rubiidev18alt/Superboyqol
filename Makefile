@@ -17,6 +17,7 @@ verify: $(ROM)
 
 clean:
 	$(RM) $(ROM) $(QOL_ROM) build/superboy-qol.ips build/replay build/superboy.sym build/qol.sym
+	$(RM) build/superboy-deluxe*.sms build/deluxe.core build/deluxe.sym build/import.core build/import.sym build/superboy-deluxe.ips
 	$(RM) -r build/maps build/qol-maps
 
 # Optional headless emulator regression (Linux). See docs/playthrough.md.
@@ -60,3 +61,32 @@ qol-test: verify $(QOL_ROM) build/replay
 	build/replay $(QOL_ROM) --qol-controls
 	build/replay $(QOL_ROM) --idle
 	build/replay $(QOL_ROM) tests/qol-all-stages.pad
+
+# Native SMS Mode 4 renderer. The two builds have separate intermediates.
+DX_SOURCES := $(wildcard src/*.asm src/qol/*.asm src/deluxe/*.asm tools/deluxe/*.py)
+.PHONY: deluxe deluxe-smb deluxe-test
+deluxe: build/superboy-deluxe.sms
+build/superboy-deluxe.sms: $(DX_SOURCES) Makefile
+	mkdir -p build
+	$(SJASMPLUS) -DQOL -DDELUXE --raw=build/deluxe.core --sym=build/deluxe.sym src/superboy.asm
+	python3 tools/deluxe/assets.py build/deluxe.core build/deluxe.sym $@
+
+deluxe-smb:
+	@test -f "$(SMB_ROM)" || { echo 'Set SMB_ROM to your local Super Mario Bros. (World) NES dump'; exit 1; }
+	mkdir -p build
+	$(SJASMPLUS) -DQOL -DDELUXE -DSMB_ASSETS --raw=build/import.core --sym=build/import.sym src/superboy.asm
+	python3 tools/deluxe/assets.py build/import.core build/import.sym build/superboy-deluxe-smb.sms --smb "$(SMB_ROM)"
+
+deluxe-test: deluxe build/replay
+	build/replay build/superboy-deluxe.sms --qol-controls
+	build/replay build/superboy-deluxe.sms --deluxe-camera
+	build/replay build/superboy-deluxe.sms tests/deluxe-all-stages.pad
+
+.PHONY: deluxe-patch deluxe-smb-test
+deluxe-patch: verify deluxe
+	python3 tools/make_ips.py $(REFERENCE) build/superboy-deluxe.sms build/superboy-deluxe.ips
+
+deluxe-smb-test: deluxe-smb build/replay
+	build/replay build/superboy-deluxe-smb.sms --qol-controls
+	build/replay build/superboy-deluxe-smb.sms --deluxe-camera
+	build/replay build/superboy-deluxe-smb.sms tests/deluxe-smb-all-stages.pad

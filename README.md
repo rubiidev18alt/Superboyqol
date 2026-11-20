@@ -1,7 +1,26 @@
 # Superboyqol
 Super Boy I for the Master System: a byte-identical disassembly and a separate playable QoL edition.
 
-## Play the QoL edition
+## Play Deluxe v0.2
+
+[Standalone IPS](releases/superboy-deluxe-v0.2.ips) · [1-1 gameplay with sound](docs/deluxe-preview.mp4) · [Build and SMB import guide](docs/deluxe.md)
+
+Deluxe keeps Super Boy’s stages and QoL controls, but uses the Master System’s
+native scrolling, colour tiles and sprites. `make deluxe` needs no NES game.
+To play with **actual Super Mario Bros. character art and music**, build the
+local-import edition with your own compatible dump:
+
+```sh
+# In a Python virtual environment, with GNU Make and SjASMPlus installed:
+python3 -m pip install py65==1.2.0
+make deluxe-smb SMB_ROM="/path/to/Super Mario Bros. (World).nes"
+# Open build/superboy-deluxe-smb.sms in a Master System emulator.
+```
+
+The standalone patch does **not** contain the imported assets. Apply it to the
+stock ROM, not to an already-patched copy.
+
+## Play the earlier QoL edition
 
 [QoL v0.1 IPS patch](releases/superboy-qol-v0.1.ips) · [Gameplay with sound](docs/qol-preview.mp4) · [Installation, controls and changes](docs/qol.md)
 
