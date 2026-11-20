@@ -2586,7 +2586,11 @@ loc_5121:
     cp $01
     jp z,loc_5216
     cp $05
+    ifdef POLISH
+    jp nc,p_death_step
+    else
     jp z,loc_502f
+    endif
     inc hl
     ld a,(hl)
     and a
@@ -2664,12 +2668,17 @@ loc_5195:
     jr loc_51ad
 
 loc_51a3:
+    ifdef POLISH
+    jp p_short_pose
+    ds $51ad-$,0
+    else
     ld c,$1e
     cp $05
     jr nz,loc_5195
     ld c,$20
     jr loc_5195
 
+    endif
 loc_51ad:
     pop de
     pop hl
@@ -2726,9 +2735,14 @@ loc_51da:
     jr loc_51f4
 
 loc_51f0:
+    ifdef POLISH
+    jp p_tall_pose
+    nop
+    else
     ld c,$2e
     jr loc_51da
 
+    endif
 loc_51f4:
     pop de
     pop hl
@@ -3198,8 +3212,12 @@ loc_5423:
 loc_5432:
     cp $10
     jp nc,loc_548b
+    ifdef POLISH
+    call p_pair_test
+    else
     ld a,(hl)
     cp $0a
+    endif
     jr nz,loc_546a
     ld a,(de)
     cp $03
@@ -3345,7 +3363,11 @@ loc_54ef:
     cp $01
     jr z,loc_5537
     cp $05
+    ifdef POLISH
+    jr nc,loc_5537            ; falling and star-launched actors are harmless
+    else
     jr z,loc_5537
+    endif
     ld a,(player_x)
     ld d,a
     inc hl

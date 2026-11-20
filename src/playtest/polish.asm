@@ -363,8 +363,21 @@ p_top_contact:
     ld a,(ix+0)
     jp z,p_normal_stomp
 p_defeat:
-    ld (ix+0),0
-    ld (hl),$dc
+    ; Keep the actual actor slot (and camera-relative coordinates) until it
+    ; leaves the screen. State 6 reserves it and removes all contact damage.
+    ld (ix+1),6
+    ld (ix+6),0               ; age in actor ticks
+    inc hl
+    ld a,(player_x)
+    cp (hl)
+    dec hl
+    ld a,3
+    jr c,.launch
+    ld a,-3
+.launch:
+    ld (ix+5),a
+    ld a,10
+    call shared.sound_effect
     jp loc_5537
 
 p_collect_item:
@@ -380,8 +393,7 @@ p_collect_item:
     jr nz,.flower
     ld a,240
     ld (p_star_time),a
-    ld a,9
-    call shared.sound_effect
+    call p_star_song
     jp loc_5537
 .flower:
     ld a,(player_big)          ; hurt after flower spawned? regain size only
@@ -453,6 +465,7 @@ p_run_tick:
     dec (hl)
     jr z,.run
     dec (hl)
+    call z,p_restore_song
 .run:
     and 3
     ret nz
@@ -504,11 +517,14 @@ p_draw_player:
     push af
     ld a,($e0b4)
     push af
+    ld a,($e0b0)
+    push af
+    ld a,($e0b8)
+    push af
     ld a,(frame_counter)
-    and 24
     rrca
-    rrca
-    rrca
+    and 7                     ; eight ink pairs, two gameplay ticks per pair
+    add a,a
     ld hl,.inks
     ld e,a
     ld d,0
@@ -516,16 +532,217 @@ p_draw_player:
     ld a,(hl)
     ld ($e0ac),a
     ld ($e0b4),a
+    inc hl
+    ld a,(hl)
+    ld ($e0b0),a
+    ld ($e0b8),a
     call draw_player
+    pop af
+    ld ($e0b8),a
+    pop af
+    ld ($e0b0),a
     pop af
     ld ($e0b4),a
     pop af
     ld ($e0ac),a
     ret
-.inks: db 11,3,13,9
+.inks: db 11,15, 10,11, 9,15, 13,11, 5,15, 3,7, 2,15, 7,11
 
 p_castle_contact:
     ld a,(p_star_time)
     or a
     ret nz
     jp hurt_player
+
+; HL is actor state+1, DE points to its (y,x). The legacy dispatcher saved
+; the loop counter, coordinates and record pointer before calling this path.
+p_death_step:
+    jp z,loc_502f              ; stock state 5 (ordinary stomp)
+    push hl
+    ld bc,4
+    add hl,bc
+    inc de
+    ld a,(de)
+    add a,(hl)                 ; throw away from the impact, not always right
+    cp 12
+    jr c,.gone_x
+    cp 245
+    jr nc,.gone_x
+    ld (de),a
+    dec de
+    inc hl
+    ld a,(hl)
+    inc (hl)
+    srl a
+    sub 5                      ; -5,-5,-4,-4,... then gravity takes over
+    jp m,.vertical
+    cp 8
+    jr c,.vertical
+    ld a,8
+.vertical:
+    ld b,a
+    ld a,(de)
+    add a,b
+    cp 192
+    jr nc,.gone
+    ld (de),a
+    pop hl
+    jp loc_5147
+.gone_x:
+    dec de
+.gone:
+    ld a,$dc
+    ld (de),a
+    pop hl
+    dec hl
+    ld (hl),0
+    jp loc_5147
+
+; Don't let an already defeated enemy turn a live walker or absorb a shot.
+p_pair_test:
+    inc de
+    ld a,(de)
+    dec de
+    cp 6
+    jr z,.skip
+    inc hl
+    ld a,(hl)
+    dec hl
+    cp 6
+    jr z,.skip
+    ld a,(hl)
+    cp $0a
+    ret
+.skip:
+    pop af
+    jp loc_548b
+
+p_short_pose:
+    cp 6
+    jr z,.flipped
+    ld c,$1e
+    cp 5
+    jp nz,loc_5195
+    ld c,$20
+    jp loc_5195
+.flipped:
+    push de
+    ld a,(de)                   ; keep the victim's own frame and layers
+    or 1
+    ld (de),a
+    inc de
+    inc de
+    inc de
+    inc de
+    ld a,(de)
+    or 1
+    ld (de),a
+    jp loc_51ad               ; shared epilogue pops DE and HL
+
+p_tall_pose:
+    cp 6
+    ld c,$2e
+    jp nz,loc_51da
+    push de
+    ld a,(de)
+    rrca
+    jp c,loc_51f4              ; already exchanged the two body segments
+    push bc
+    ld hl,8
+    add hl,de
+    ld b,2
+.swap:
+    ld a,(de)
+    or 1
+    ld c,a
+    ld a,(hl)
+    or 1
+    ld (de),a
+    ld (hl),c
+    inc de
+    inc hl
+    inc de
+    inc de
+    inc de
+    inc hl
+    inc hl
+    inc hl
+    djnz .swap
+    pop bc
+    jp loc_51f4
+
+; A cache miss for a tagged pose. Reverse each 8x16 half in both ink layers
+; before the usual two-colour conversion. Only the six normal enemy slots
+; use the flip tag; other legacy sprites can have unaligned pattern numbers.
+p_flip_source:
+    ld a,(dx_slot)
+    cp 10
+    ret c
+    cp 26
+    ret nc
+    push bc
+    ld de,$ed80                ; temporary, not used by standalone music
+    ld b,4
+.half:
+    ld a,15
+    add a,l
+    ld l,a                     ; legacy shape starts on a 32-byte boundary
+    ld c,16
+.row:
+    ld a,(hl)
+    ld (de),a
+    dec hl
+    inc de
+    dec c
+    jr nz,.row
+    ld a,l
+    add a,17
+    ld l,a
+    jr nc,.same
+    inc h
+.same:
+    djnz .half
+    pop bc
+    ld hl,$ed80
+    ret
+
+p_stage_song equ $eb29
+p_song_init:
+    ld (p_stage_song),a
+    push af
+    xor a
+    ld (p_star_time),a         ; explicit scene changes take precedence
+    pop af
+    jp shared.sound_init
+
+p_star_song:
+    push ix
+    push bc
+    push de
+    push hl
+    xor a
+    call shared.sound_init     ; reset envelopes, tempo and mixer under DI
+    ld hl,p_star_lead
+    ld (music_channel_1+1),hl
+    ld hl,p_star_bass
+    ld (music_channel_2+1),hl
+    ld hl,p_star_echo
+    ld (music_channel_3+1),hl
+    ld a,1
+    ld (audio_enabled),a
+    ei
+    pop hl
+    pop de
+    pop bc
+    pop ix
+    ret
+
+p_restore_song:
+    push af
+    ld a,(p_stage_song)
+    call start_music
+    ei
+    pop af
+    ret
+
+    include "star_score.asm"

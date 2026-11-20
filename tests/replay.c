@@ -82,6 +82,10 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
     unsigned protected_frames = 0, cleared_contacts = 0, before_size = 0;
     bool saw_star = false, expired = false, hurt_after_expiry = false;
     unsigned char nearby = 0;
+    bool heard_stage_again = false, flipped = false;
+    unsigned inks = 0, ink_changes = 0, last_ink = 0;
+    unsigned last_pc[3] = {0}, notes[3] = {0};
+    int victim = -1, launch_x = 0, launch_y = 0, rise_px = 0, travel = 0, fall_px = 0;
     unsigned spawns = 0, mushroom_trip = 0, flower_ticks = 0;
     bool active = false, mushroom_collected = false;
     unsigned frame = 0, clears = 0;
@@ -127,8 +131,20 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
                     if (!saw_star || expired || ram[0x372] != before_size || ram[0x373]) return 1;
                     if (!protected_frames && timer < 239) return 1;
                     ++protected_frames;
+                    unsigned ink = ram[0xd0e] & 15; /* native player pattern cache */
+                    inks |= 1u << ink;
+                    ink_changes += ink != last_ink;
+                    last_ink = ink;
+                    for (int ch = 0; ch < 3; ++ch) {
+                        unsigned pc = ram[0x1a21+32*ch] + 256*ram[0x1a22+32*ch];
+                        /* The star score is fixed ROM; ordinary stage scores are slot 2. */
+                        if (pc < 0x100 || pc >= 0x144e) return 1;
+                        notes[ch] += pc != last_pc[ch];
+                        last_pc[ch] = pc;
+                    }
                 } else if (protected_frames) {
                     expired = true;
+                    if (ram[0x1a22] >= 0x80 && ram[0x1a22] < 0xc0) heard_stage_again = true;
                     if (nearby && before_size && !ram[0x372] && ram[0x36c] < 184)
                         hurt_after_expiry = true;
                 }
@@ -136,9 +152,21 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
                     for (int j = 0; j < 6; ++j) {
                         unsigned mask = 1u << j;
                         bool actor = ram[0x56 + 7*j] != 0;
-                        if (timer && (nearby & mask) && !actor) ++cleared_contacts;
+                        bool flying = actor && ram[0x57 + 7*j] == 6;
+                        int wx = 8*ram[0x235] + ram[0x8c + 2*j], y = ram[0x8b + 2*j];
+                        if (timer && (nearby & mask) && flying) {
+                            ++cleared_contacts;
+                            if (victim == -1) { victim = j; launch_x = wx; launch_y = y; }
+                        }
+                        if (flying && victim == j) {
+                            int sl = j < 4 ? 10+2*j : 18+4*(j-4);
+                            flipped |= (ram[0xd01+3*sl] & 1) != 0;
+                            if (launch_y-y > rise_px) rise_px = launch_y-y;
+                            if (y-launch_y+rise_px > fall_px) fall_px = y-launch_y+rise_px;
+                            if (abs(wx-launch_x) > travel) travel = abs(wx-launch_x);
+                        }
                         nearby &= ~mask;
-                        if (actor && abs(ram[0x8c + 2*j]-ram[0x36d]) < 20 &&
+                        if (actor && !flying && abs(ram[0x8c + 2*j]-ram[0x36d]) < 20 &&
                             abs(ram[0x8b + 2*j]-ram[0x36c]) < 20) nearby |= mask;
                     }
                 }
@@ -187,7 +215,11 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
     }
     if (star) {
         if (fields != EOF || ferror(movie) || !hurt_after_expiry || !expired || !cleared_contacts ||
-            protected_frames < 478 || protected_frames > 490) return 1;
+            protected_frames < 478 || protected_frames > 490 || !flipped || rise_px < 16 ||
+            fall_px < 16 || travel < 24 || ink_changes < 200 || !heard_stage_again ||
+            (inks & 0x2eac) != 0x2eac || notes[0]<16 || notes[1]<16 || notes[2]<16) return 1;
+        printf("Star palette: %u changes; knockback: %d px up, %d across, %d down. "
+               "All three star voices played and stage music returned.\n", ink_changes, rise_px, travel, fall_px);
         printf("Star: %u protected frames, %u enemy contact(s) cleared; vulnerable again after expiry.\n",
                protected_frames, cleared_contacts);
         return 0;

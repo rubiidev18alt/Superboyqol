@@ -33,7 +33,11 @@ dx_sprites:
     jr z,.hide
     ld (dx_colour),a
     ld a,(ix+2)
+    ifdef POLISH
+    and $fd                   ; bit 0 tags a flipped flight pose
+    else
     and $fc
+    endif
     ld (dx_pat),a
     ifdef SMB_ASSETS
     push hl
@@ -219,6 +223,9 @@ dx_upload_shape:               ; D=bank, E=pattern, B=ink
     endif
     ld h,0
     ld l,e
+    ifdef POLISH
+    res 0,l                   ; source always uses a 4-aligned pattern ID
+    endif
     add hl,hl
     add hl,hl
     add hl,hl
@@ -231,6 +238,10 @@ dx_upload_shape:               ; D=bank, E=pattern, B=ink
     ld h,a
     ld a,8
     ld ($fffc),a
+    ifdef POLISH
+    bit 0,e
+    call nz,p_flip_source
+    endif
     ifdef GENERIC
     ld a,(g_ink2)
     or a

@@ -140,7 +140,11 @@ start_music:
     ifdef SMB_ASSETS
     call dx_song_init
     else
+    ifdef POLISH
+    call p_song_init
+    else
     call shared.sound_init
+    endif
     endif
     xor a
     ld hl,music_fade
