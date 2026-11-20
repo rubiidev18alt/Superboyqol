@@ -16,7 +16,9 @@ or two tiles without changing the controls. [Changes, build and checks](docs/gen
 
 ## Try the Generic polish build
 
-[Download the playtest ROM](releases/superboy-generic-polish-rc6.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
+[Download the playtest ROM](releases/superboy-generic-polish-rc7.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
+
+RC7 gives matching sprites consistent colours across spawn slots and poses. [Compare the same frame of 2-2 before and after](docs/polish-sprite-palettes.png).
 
 Pick up a star to hear **Comet Run** take over all three PSG voices at high speed. Fire-flower shots now flip vulnerable enemies and launch them in the direction of the shot. [Watch both with game audio](docs/polish-star-fire.mp4). Top running speed is 12.5% faster than stable.
 This opt-in build also adds braking on reversals, press-only firing, pulsing gold question blocks,

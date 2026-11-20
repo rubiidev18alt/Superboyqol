@@ -1,6 +1,6 @@
-# Generic polish playtest (RC6)
+# Generic polish playtest (RC7)
 
-[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc6.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
+[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc7.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
 
 This build keeps the balanced Generic layouts. Try running at full speed and
 pressing the opposite direction, then try the same turn near a ledge. The
@@ -18,6 +18,21 @@ collision, or per-block tile updates are needed.
 Four PSG cues distinguish bumping a brick from breaking it, enemy contact
 from collecting a coin, and earning an extra life from an ordinary pickup.
 They borrow the effects voice rather than stopping the stage music.
+
+## Shared sprite colours (RC7)
+
+![The same frame of 2-2 in RC6 and RC7: identical enemies now have matching colours.](polish-sprite-palettes.png)
+
+The four short-enemy slots that share this artwork now use coral and white
+regardless of spawn order. Tall green-and-white enemies keep leaf-green
+accents on both body halves instead of switching to red below the waist.
+The player's outfit, mushroom cap, flower petals and fireballs use the same
+coral; gold and white highlights stay distinct. These are **sprite** colours:
+level scenery, the HUD and the question-block pulse use their own palette.
+Star invincibility still deliberately cycles the player's inks.
+
+The paired screenshots are from frame 16,320 of the same controller recording.
+RC7 keeps the existing RC6 replay inputs, including the 16-stage campaign.
 
 ## Faster running and stars
 
@@ -82,7 +97,7 @@ contains both halves of a question block.
 
 ## Measured on Genesis Plus GX (NTSC-U)
 
-| Same cold boot and input | v0.3.1 | RC6 |
+| Same cold boot and input | v0.3.1 | RC7 |
 | --- | ---: | ---: |
 | Start press to active 1-1 | 38 frames | 20 frames |
 | First leftward pixel after reversing a full rightward run | frame 18 | frame 10 |
@@ -105,13 +120,13 @@ The card itself (world, player and life count) is still displayed.
 make polish                             # build/superboy-polish.sms
 make verify generic                     # stock still matches its original
 cmp build/superboy-generic.sms releases/superboy-generic-v0.3.1.sms
-cmp build/superboy-polish.sms releases/superboy-generic-polish-rc6.sms
+cmp build/superboy-polish.sms releases/superboy-generic-polish-rc7.sms
 make polish-test GPGX=/path/to/Genesis-Plus-GX
 build/replay releases/superboy-generic-v0.3.1.sms --opening  # A/B baseline
 ```
 
 Use GNU Make, SjASMPlus 1.21.1, Python 3 and the [pinned emulator for tests](playthrough.md).
-RC6 SHA-256: `f1d1c9e4fb17cacd575ade4ad84ac48aa9e5357dcfccf690829060311351d1e1`.
+RC7 SHA-256: `630b79cc4ce15873aee7b664d790cc05ddaf4304be49a1127d3258b86b963506`.
 The focused checks cover movement, the opening benchmark, two rendered question-block colour cycles, fine scrolling with
 a fixed HUD, scrolling enemies and coin popups, and five timeouts through
 game over and attract mode. The controller recording

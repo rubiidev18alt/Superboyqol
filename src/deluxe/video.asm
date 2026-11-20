@@ -481,7 +481,15 @@ dx_tileset:
 dx_skies: db $39,$39,$01,$39,$10,$39,$39,$39,$10,$11,$11,$11,$10,$39,$01,$39,$10,$00
 dx_palette:
     db $39,$00,$09,$1d,$10,$39,$06,$2e,$02,$07,$0b,$1f,$04,$27,$2a,$3f
+    ifdef POLISH
+    ; Sprite CRAM only: leaf highlight/leaf shade ($0d/$08), warm red
+    ; body ($17, slots 8/9), amber and gold ($0b/$1f). Both red indices
+    ; are needed: the legacy converter does work per set bit in the ink.
+    db $00,$00,$0d,$1d,$10,$35,$06,$2e
+    db sprite_coral_cram,sprite_coral_cram,$0b,$1f,$08,$1b,$2a,$3f
+    else
     db $00,$00,$09,$1d,$10,$35,$06,$2e,$02,$03,$0b,$1f,$04,$1b,$2a,$3f
+    endif
 
     include "sprites.asm"
 

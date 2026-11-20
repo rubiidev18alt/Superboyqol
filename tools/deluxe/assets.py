@@ -235,7 +235,8 @@ def main():
                 '..gg...gg...gg..', '..gggg.gg.gggg..', '...gggggggggg...',
                 '....gggggggg....', '.......gg.......', '......gggg......',
                 '.....gggggg.....'))):
-            ink = {'.':0, 'r':9, 'w':15, 'k':1, 'y':11, 'g':12}
+            ink = {'.': sym['spr_clear'], 'r': sym['spr_red'], 'w': sym['spr_white'],
+                   'k': sym['spr_outline'], 'y': sym['spr_gold'], 'g': sym['spr_leaf']}
             assert len(art) == 16 and all(len(row) == 16 for row in art)
             pixels = [[ink[c] for c in row[x:x+8]] for x in (0,8) for row in art]
             start = sym[label]

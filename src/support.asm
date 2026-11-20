@@ -122,10 +122,10 @@ load_common_patterns:
     inc hl
     ld (hl),$0a
     ld hl,$e114
-    ld (hl),$08
+    ld (hl),fireball_ink
     add hl,bc
     inc hl
-    ld (hl),$0a
+    ld (hl),spr_amber
     ret
 
 vdp_copy_keep_hl_bc:

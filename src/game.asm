@@ -164,7 +164,7 @@ load_stage:
     ld a,$80
     ld ($e384),a
     call hide_sprites
-    ld de,$090f
+    ld de,(spr_red << 8) | spr_white
     ld hl,$e0ac
     ld (hl),d
     ld bc,$0004
@@ -515,12 +515,12 @@ loc_4353:
     ret
 
 sub_435a:
-    ld a,$09
-    ld c,$0f
+    ld a,spr_red
+    ld c,spr_white
     ld b,$02
     call set_actor_sprite_colours
-    ld a,$02
-    ld c,$0f
+    ld a,walker_alt_ink
+    ld c,spr_white
     ld b,$02
     call loc_4350
     ld hl,shared.patterns_9e6e
@@ -585,18 +585,18 @@ set_secondary_sprite_colours:
     jp loc_4350
 
 sub_43f7:
-    ld a,$0f
-    ld c,$0c
+    ld a,spr_white
+    ld c,spr_leaf
     ld b,$01
     call set_secondary_sprite_colours
-    ld c,$08
+    ld c,tall_lower_ink
     ld b,$01
     call loc_4350
-    ld a,$0f
-    ld c,$0c
+    ld a,spr_white
+    ld c,spr_leaf
     ld b,$01
     call loc_4350
-    ld c,$08
+    ld c,tall_lower_ink
     ld b,$01
     jp loc_4350
 

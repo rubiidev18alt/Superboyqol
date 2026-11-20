@@ -1,6 +1,7 @@
 ; 48 KiB cartridge. Banks 0 and 2 contain identical bytes, including
 ; sound routines with absolute references into the $8000-$bfff window.
     include "ram.asm"
+    include "sprite_inks.asm"
     include "music_macros.asm"
     org $0000
     ifdef DELUXE
