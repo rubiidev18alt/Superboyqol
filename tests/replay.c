@@ -76,7 +76,11 @@ static void video(const void *d, unsigned w, unsigned h, size_t pitch) {
 static void audio(int16_t l, int16_t r) { (void)l; (void)r; }
 static size_t batch(const int16_t *d, size_t n) { (void)d; return n; }
 
-static int replay(FILE *movie, const uint8_t *ram) {
+/* Same pad reader, with an optional short 1-1 pickup route. Coordinates are
+ * world pixels so camera movement cannot masquerade as mushroom movement. */
+static int replay(FILE *movie, const uint8_t *ram, bool items) {
+    unsigned spawns = 0, mushroom_trip = 0, flower_ticks = 0;
+    bool active = false, mushroom_collected = false;
     unsigned frame = 0, clears = 0;
     int count, stage = -1;
     bool stage_visible = false;
@@ -108,6 +112,33 @@ static int replay(FILE *movie, const uint8_t *ram) {
                 fprintf(stderr, "Demo or life count changed at frame %u\n", frame);
                 return 1;
             }
+            if (items) {
+                bool now = ram[0x4f] == 0x10;
+                if (ram[0x46]) return 1;
+                if (now) {
+                    unsigned x = (ram[0x235]-31)*8 + ram[0x8a];
+                    unsigned rise = ram[0xb27];
+                    if (!active) {
+                        ++spawns;
+                        if (spawns > 2 || x != (spawns == 1 ? 34u : 177u)*8 || rise != 16)
+                            return 1;
+                    }
+                    if (!!ram[0x251] != (spawns == 2) || rise > 16 ||
+                        (rise && ram[0x89] != 96 + rise)) return 1;
+                    if (spawns == 1) {
+                        if (ram[0x372] || x < 34*8) return 1;
+                        if (x-34*8 > mushroom_trip) mushroom_trip = x-34*8;
+                    } else {
+                        if (!mushroom_collected || ram[0x373] || x != 177*8 ||
+                            (!rise && ram[0x89] != 96)) return 1;
+                        if (!rise) ++flower_ticks;
+                    }
+                } else if (active && spawns == 1) {
+                    mushroom_collected = ram[0x372] && !ram[0x373];
+                }
+                active = now;
+                continue;
+            }
             if (ram[0x46] != stage) {
                 if (!stage_visible || ram[0x46] != ((stage + 1) & 15)) {
                     fprintf(stderr, "Missing picture or unexpected stage %u at frame %u\n", ram[0x46], frame);
@@ -121,6 +152,13 @@ static int replay(FILE *movie, const uint8_t *ram) {
                 stage_visible = true;
             }
         }
+    }
+    if (items) {
+        if (fields != EOF || ferror(movie) || spawns != 2 || !mushroom_collected ||
+            mushroom_trip < 16 || flower_ticks < 16 || active || !ram[0x373]) return 1;
+        printf("Fixed 1-1 pickups: mushroom travelled %u px; flower stayed put for %u frames; fire enabled.\n",
+               mushroom_trip, flower_ticks);
+        return 0;
     }
     if (fields != EOF || ferror(movie) || clears != 16 || stage != 0) {
         fprintf(stderr, "Replay stopped after %u clears (%u frames)\n", clears, frame);
@@ -313,7 +351,8 @@ static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
+    bool items = argc == 4 && !strcmp(argv[3], "--power-ups");
+    if (argc != 3 && !items) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad [--power-ups]|--idle|--qol-controls|--deluxe-camera|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[262144];
@@ -343,7 +382,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
+                 (blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram, items));
     retro_unload_game();
     retro_deinit();
     return result;

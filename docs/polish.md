@@ -1,6 +1,6 @@
-# Generic polish playtest (RC2)
+# Generic polish playtest (RC3)
 
-[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc2.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
+[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc3.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
 
 This build keeps the balanced Generic layouts. Try running at full speed and
 pressing the opposite direction, then try the same turn near a ledge. The
@@ -19,9 +19,32 @@ Four PSG cues distinguish bumping a brick from breaking it, enemy contact
 from collecting a coin, and earning an extra life from an ordinary pickup.
 They borrow the effects voice rather than stopping the stage music.
 
+## Fixed power-up blocks (RC3)
+
+In 1-1, the lone first question block always pays a coin. The first low
+question block in the brick row just beyond it always holds an upgrade.
+There are **16 designated blocks across the 12 non-castle stages**. Contents
+are keyed to the block’s level column and row, not the jump timing, camera
+phase, or the order in which you hit blocks. Death/retry restores them.
+
+- **Small:** a mushroom rises out of the block, starts moving right, turns at
+  walls and falls off edges. Collect it to grow.
+- **Big or already able to shoot:** a fire flower rises and stays on the
+  block. Collect it while big to enable fire. If you took damage after it
+  appeared, collecting it restores size instead.
+- The block is spent when it releases its item. The game has one pickup
+  slot: hitting another upgrade block while that slot is occupied leaves
+  the second block intact rather than paying out a coin or deleting the item.
+
+[Watch the mushroom and fire flower pickups](polish-power-ups.mp4). The
+controller-only regression collects both in 1-1: it observes the mushroom
+travel 72 pixels and the emerged flower stay still for 148 frames while the
+camera moves. The asset build also checks that every listed location really
+contains both halves of a question block.
+
 ## Measured on Genesis Plus GX (NTSC-U)
 
-| Same cold boot and input | v0.3.1 | RC2 |
+| Same cold boot and input | v0.3.1 | RC3 |
 | --- | ---: | ---: |
 | Start press to active 1-1 | 38 frames | 20 frames |
 | First leftward pixel after reversing a full rightward run | frame 18 | frame 10 |
@@ -44,18 +67,18 @@ The card itself (world, player and life count) is still displayed.
 make polish                             # build/superboy-polish.sms
 make verify generic                     # stock still matches its original
 cmp build/superboy-generic.sms releases/superboy-generic-v0.3.1.sms
-cmp build/superboy-polish.sms releases/superboy-generic-polish-rc2.sms
+cmp build/superboy-polish.sms releases/superboy-generic-polish-rc3.sms
 make polish-test GPGX=/path/to/Genesis-Plus-GX
 build/replay releases/superboy-generic-v0.3.1.sms --opening  # A/B baseline
 ```
 
 Use GNU Make, SjASMPlus 1.21.1, Python 3 and the [pinned emulator for tests](playthrough.md).
-RC2 SHA-256: `ce8c9f54eed7c07936624be28551c75b08a59881c20cfdaf97232413cbcb0bc1`.
+RC3 SHA-256: `fb59795241cf8fd518a92aa2bab0f6ad28646467ded9b7ca52afa74a9a7c79c2`.
 The focused checks cover movement, the opening benchmark, two rendered question-block colour cycles, fine scrolling with
 a fixed HUD, scrolling enemies and coin popups, and five timeouts through
 game over and attract mode. The controller recording
 `tests/polish-all-stages.pad` then clears all 16 stages from reset: the recording ends back at 1-1 on
-frame 41,503 with five lives. This is a different route from v0.3.1’s recording,
+frame 40,272 with five lives. This is a different route from v0.3.1’s recording,
 not a benchmark of total loading time. Physical hardware has not been tested.
 
 ## Next playtest priorities

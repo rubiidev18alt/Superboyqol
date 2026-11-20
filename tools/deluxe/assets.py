@@ -197,6 +197,40 @@ def main():
                for b in core[addr:addr+8]] if i else [[4]*8 for _ in range(8)]
         start = sym['dx_hud_font']+i*32
         rom[start:start+32] = pack(pix)
+    if 'p_mushroom_art' in sym:
+        # Catch stale item coordinates if a layout edit removes or moves a ?.
+        for stage in range(16):
+            rec = sym['p_item_blocks'] + stage*4
+            for x,y in (core[rec:rec+2], core[rec+2:rec+4]):
+                if x == 255:
+                    continue
+                col = sym['stage_layouts'] + stage*272 + x
+                for half, selector in enumerate(core[col:col+2]):
+                    cell = sym['map_columns'] + selector*22 + y
+                    if not 1 <= y < 22 or core[cell-1:cell+1] != bytes((0x28+half, 0x2a+half)):
+                        raise ValueError(f'no question block at stage {stage+1}, column {x}, row {y}')
+        # Original 16x16 pickup silhouettes. Mode 4 sprites store the whole
+        # left half before the right half; zero is transparent sprite ink.
+        for label, art in (
+            ('p_mushroom_art', (
+                '.....rrrrrr.....', '...rrrwwwrrr....', '..rwwrwwwrrwwr..',
+                '..rwwrrwrrrwwr..', '.rrrrrrrrrrrrrr.', '.rrrwwrrrrwwrrr.',
+                'rrrrwwwrrrwwwrrr', 'rrrrwwrrrrrwwrrr', 'rrrrrrrrrrrrrrrr',
+                '.rrrrwwwwwwrrrr.', '....wwwwwwww....', '....wwkwwkww....',
+                '....wwkwwkww....', '....wwwwwwww....', '.....wwwwww.....',
+                '......wwww......')),
+            ('p_flower_art', (
+                '.....rrrrrr.....', '...rryyyyyyrr...', '..rryywwwwyyrr..',
+                '..ryywwkkwwyyr..', '..ryywwkkwwyyr..', '..rryywwwwyyrr..',
+                '...rryyyyyyrr...', '.....rrrrrr.....', '.......gg.......',
+                '..gg...gg...gg..', '..gggg.gg.gggg..', '...gggggggggg...',
+                '....gggggggg....', '.......gg.......', '......gggg......',
+                '.....gggggg.....'))):
+            ink = {'.':0, 'r':9, 'w':15, 'k':1, 'y':11, 'g':12}
+            assert len(art) == 16 and all(len(row) == 16 for row in art)
+            pixels = [[ink[c] for c in row[x:x+8]] for x in (0,8) for row in art]
+            start = sym[label]
+            rom[start:start+128] = pack(pixels)
     args.output.write_bytes(rom)
 
 

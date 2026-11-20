@@ -181,6 +181,15 @@ dx_upload_shape:               ; D=bank, E=pattern, B=ink
     set 5,h
     di
     call dx_address
+    ifdef POLISH
+    ld a,(dx_slot)
+    cp 8
+    jr nz,.not_item
+    ld a,($e04f)
+    cp $10
+    jp z,p_draw_item
+.not_item:
+    endif
     ifdef SMB_ASSETS
     bit 7,d
     jr z,.legacy

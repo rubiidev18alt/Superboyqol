@@ -1773,6 +1773,10 @@ check_head_tile:
 
 loc_4c37:
     pop bc
+    ifdef POLISH
+    jp p_hit_question
+    ds $4c46-$,0
+    else
     ld a,r
     ld b,a
     ld a,(frame_counter)
@@ -1780,6 +1784,7 @@ loc_4c37:
     and $0f
     jp nz,loc_4cd6
     jr loc_4c87
+    endif
 
 loc_4c46:
     pop bc
@@ -1829,6 +1834,9 @@ loc_4c84:
     pop de
     jr loc_4c81
 
+    ifdef POLISH
+    ds $4cd6-$,0
+    else
 loc_4c87:
     ld a,(scroll_column)
     and a
@@ -1879,6 +1887,7 @@ loc_4cc5:
     call sub_4cf3
     jp upload_playfield
 
+    endif
 loc_4cd6:
     call sub_5c77
     ld bc,$e248
@@ -2543,6 +2552,10 @@ loc_50fe:
     ld a,(hl)
     and a
     jr z,loc_511c
+    ifdef POLISH
+    call p_item_tick
+    ds $511c-$,0
+    else
     ld a,(player_big)
     and a
     jp z,loc_511c
@@ -2550,6 +2563,7 @@ loc_50fe:
     and $0f
     ld ($e0c0),a
 
+    endif
 loc_511c:
     ld de,$e089
     ld b,$07
@@ -3377,9 +3391,14 @@ loc_5537:
     ret
 
 loc_5548:
+    ifdef POLISH
+    jp p_side_contact
+    ds $554e-$,0
+    else
     ld a,($e377)
     and a
     jr z,loc_5565
+    endif
 
 loc_554e:
     ld (ix+$01),$05
@@ -3432,6 +3451,10 @@ loc_559a:
     jp loc_5537
 
 loc_55b2:
+    ifdef POLISH
+    jp p_collect_item
+    ds $55cd-$,0
+    else
     ld a,$00
     ld (ix+$00),a
     ld (hl),$dc
@@ -3446,6 +3469,7 @@ loc_55c2:
     call sub_55cd
     jp loc_5537
 
+    endif
 sub_55cd:
     ld a,($e103)
     ld ($e107),a
