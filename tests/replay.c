@@ -130,8 +130,42 @@ static int idle_test(const uint8_t *ram) {
     return 1;
 }
 
+static void hold(unsigned mask, unsigned frames) {
+    pad = mask;
+    while (frames--) retro_run();
+}
+
+/* No state loads or RAM writes. Exercise the acceleration and two jump arcs
+ * on the safe starting platform before trying the longer campaign replay. */
+static int qol_controls(const uint8_t *ram) {
+    const unsigned jump = 1u << RETRO_DEVICE_ID_JOYPAD_B;
+    const unsigned right = 1u << RETRO_DEVICE_ID_JOYPAD_RIGHT;
+    hold(0, 140); hold(jump, 1); hold(0, 100);
+    if (!picture || ram[0x376] != 10 || ram[0x383]) return 1;
+    unsigned floor = ram[0x36c], heights[2];
+    for (unsigned j = 0; j < 2; ++j) {
+        unsigned apex = floor;
+        for (unsigned i = 0; i < 150; ++i) {
+            hold(i < (j ? 65u : 6u) ? jump : 0, 1);
+            if (ram[0x36c] < apex) apex = ram[0x36c];
+        }
+        heights[j] = floor - apex;
+        if (ram[0x36c] != floor) return 1;
+    }
+    hold(right, 4);
+    if (!ram[0x23b] || ram[0x23b] >= 16) return 1;
+    hold(right, 16);
+    if (ram[0x23b] != 16) return 1;
+    hold(right | (1u << RETRO_DEVICE_ID_JOYPAD_A), 16);
+    if (ram[0x23b] != 32) return 1;
+    hold(0, 10);
+    if (ram[0x23b] || !heights[0] || heights[1] <= heights[0] + 32) return 1;
+    printf("Walk/run/braking pass. Tap jump %u px, held jump %u px.\n", heights[0], heights[1]);
+    return 0;
+}
+
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle\n", argv[0]); return 2; }
+    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[49152];
@@ -140,8 +174,9 @@ int main(int argc, char **argv) {
     }
     fclose(rom);
     bool idle = !strcmp(argv[2], "--idle");
-    FILE *movie = idle ? NULL : fopen(argv[2], "r");
-    if (!idle && !movie) { perror(argv[2]); return 1; }
+    bool controls = !strcmp(argv[2], "--qol-controls");
+    FILE *movie = idle || controls ? NULL : fopen(argv[2], "r");
+    if (!idle && !controls && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
     retro_set_video_refresh(video);
     retro_set_audio_sample(audio);
@@ -153,7 +188,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (idle ? idle_test(ram) : replay(movie, ram));
+                 (controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
     retro_unload_game();
     retro_deinit();
     return result;

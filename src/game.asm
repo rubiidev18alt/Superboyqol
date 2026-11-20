@@ -36,7 +36,11 @@ reset_handler:
     di
     im 1
     ld sp,$f300
+    ifdef QOL
+    call shared.safe_video_init
+    else
     call init_video
+    endif
 
 loc_402e:
     di
@@ -136,7 +140,11 @@ loc_40d6:
 
 ; Display the stage card, copy layout/spawn data, then dispatch through stage_init_table.
 load_stage:
+    ifdef QOL
+    call shared.reset_motion
+    else
     ld hl,projectile_defaults
+    endif
     ld de,$e3f8
     ld bc,$0007
     ldir
@@ -227,9 +235,15 @@ load_stage:
     call vdp_write_byte
     ex de,hl
     call vdp_write_byte
+    ifdef QOL
+    ld a,$08            ; shorter stage card on starts and retries
+    call busy_wait
+    ld a,(stage_index)
+    else
     ld a,$14
     call busy_wait
     ld a,(stage_index)
+    endif
     add a,a
     ld hl,stage_data_table
     add a,l
@@ -1152,13 +1166,24 @@ loc_491c:
     ld a,($e259)
     inc a
     ld ($e259),a
+    ifdef QOL
+    and $01             ; accept air steering every other update
+    jr nz,loc_4979
+    else
     and $03
     jr nz,loc_4979
+    endif
 
 loc_4935:
     ld a,b
     bit 2,a
     jr z,loc_4950
+    ifdef QOL
+    ld a,(ix+1)
+    call shared.accelerate
+    ld (ix+1),a
+    ds $494e - $, 0
+    else
     ld a,(ix+$01)
     bit 5,(ix+$00)
     jr z,loc_4947
@@ -1171,11 +1196,18 @@ loc_4947:
 loc_4949:
     jr nc,loc_4979
     inc (ix+$01)
+    endif
     jr loc_4979
 
 loc_4950:
     bit 3,a
     jr z,loc_496a
+    ifdef QOL
+    ld a,(ix+2)
+    call shared.accelerate
+    ld (ix+2),a
+    ds $4968 - $, 0
+    else
     ld a,(ix+$02)
     bit 5,(ix+$00)
     jr z,loc_4961
@@ -1188,6 +1220,7 @@ loc_4961:
 loc_4963:
     jr nc,loc_4979
     inc (ix+$02)
+    endif
     jr loc_4979
 
 loc_496a:
@@ -1281,12 +1314,19 @@ loc_49ee:
     jp loc_4ae2
 
 loc_4a1c:
+    ifdef QOL
+    ld a,(ix+1)
+    call shared.pixel_step
+    jr c,loc_4a2b
+    ds $4a2a - $, 0
+    else
     ld a,(ix+$01)
     cp $20
     jr nc,loc_4a2a
     ld a,(frame_counter)
     and $01
     jr z,loc_4a2b
+    endif
 
 loc_4a2a:
     dec h
@@ -1312,7 +1352,11 @@ loc_4a48:
     jr nz,loc_4a51
 
 loc_4a4e:
+    ifdef QOL
+    call shared.brake_left
+    else
     dec (ix+$01)
+    endif
 
 loc_4a51:
     ld a,(ix+$02)
@@ -1334,12 +1378,19 @@ loc_4a51:
     jp loc_4ae2
 
 loc_4a78:
+    ifdef QOL
+    ld a,(ix+2)
+    call shared.pixel_step
+    jr c,loc_4a87
+    ds $4a86 - $, 0
+    else
     ld a,(ix+$02)
     cp $20
     jr nc,loc_4a86
     ld a,(frame_counter)
     and $01
     jr z,loc_4a87
+    endif
 
 loc_4a86:
     inc h
@@ -1394,7 +1445,11 @@ loc_4ad2:
     jr nz,loc_4ae2
 
 loc_4ad8:
+    ifdef QOL
+    call shared.brake_right
+    else
     dec (ix+$02)
+    endif
     jr loc_4ae2
 
 loc_4add:
@@ -1416,8 +1471,14 @@ apply_gravity:
     ld (ix+$05),$01
 
 loc_4afd:
+    ifdef QOL
+    call shared.grounded_pose
+    nop
+    nop
+    else
     ld a,$02
     ld (player_pose),a
+    endif
     ld a,(ix+$01)
     add a,(ix+$02)
     ret nz
@@ -1426,6 +1487,10 @@ loc_4afd:
     ret
 
 loc_4b0e:
+    ifdef QOL
+    jp shared.fall_if_released
+    ds $4b28 - $, 0
+    else
     bit 1,(ix+$05)
     ret z
     dec (ix+$04)
@@ -1440,6 +1505,7 @@ loc_4b21:
     cp (hl)
     ret nz
     jp hurt_player
+    endif
 
 probe_floor:
     ld hl,(player_y)
@@ -3816,11 +3882,20 @@ loc_5943:
     ret
 
 jump_steps:
+    ifdef QOL
+    ; A held jump rises quickly, then tapers to its apex. Release cuts the rise.
+    db 3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2
+    db 2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1
+    db 1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0
+    db 1,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0
+    ds 8, 0
+    else
     db $03, $02, $03, $02, $03, $02, $02, $02, $03, $02, $02, $02, $01, $02, $01, $02  ; $5953
     db $01, $02, $01, $01, $02, $01, $01, $02, $01, $01, $01, $02, $01, $01, $00, $01  ; $5963
     db $01, $01, $01, $01, $00, $01, $01, $01, $01, $00, $01, $01, $01, $00, $01, $01  ; $5973
     db $00, $00, $00, $01, $00, $01, $00, $00, $01, $00, $00, $01, $00, $00, $00, $01  ; $5983
     db $00, $00, $00, $00, $ff, $00, $00, $ff  ; $5993
+    endif
 
 sub_599b:
     ld hl,$e3ff
@@ -3904,9 +3979,16 @@ text_copyright:
     db $00
     abyte $a1 "ZEMINA"
 text_push_space:
+    ifdef QOL
+    abyte $a1 "PRESS"
+    db $00
+    abyte $a8 "1"
+    ds 3, 0
+    else
     abyte $a1 "PUSH"
     db $00
     abyte $a1 "SPACE"
+    endif
 blank_pattern_1:
     db $00, $00, $00, $00, $00, $00, $00, $00
 blank_pattern_2:

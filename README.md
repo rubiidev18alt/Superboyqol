@@ -1,5 +1,11 @@
 # Superboyqol
-Idk why you need a qol mod for this game but ok. This is technically also a full improvement mod
+Super Boy I for the Master System: a byte-identical disassembly and a separate playable QoL edition.
+
+## Play the QoL edition
+
+[QoL v0.1 IPS patch](releases/superboy-qol-v0.1.ips) · [Gameplay with sound](docs/qol-preview.mp4) · [Installation, controls and changes](docs/qol.md)
+
+Run `make qol` to build `build/superboy-qol.sms`. The mod changes movement, graphics and music, and adds a same-stage continue. The stock build and its regression tests remain available below.
 
 ## Rebuild the ROM
 

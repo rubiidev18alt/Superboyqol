@@ -207,11 +207,16 @@ game_over:
     ld de,$352b
     ld bc,$0009
     call vdp_copy
+    ifdef QOL
+    jp shared.continue_menu
+    ds $747b - $, 0
+    else
     ld a,$ff
     call busy_wait
     ld a,$ff
     call busy_wait
     jp loc_402e
+    endif
 
 clear_message_area:
     di

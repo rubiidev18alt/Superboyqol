@@ -343,6 +343,9 @@ layout_4_4:
     db $5b, $5c, $5b, $5c, $5b, $5c, $5b, $5c, $34, $34, $12, $13, $71, $72, $73, $76
 
 stage_colours:
+    ifdef QOL
+    include "qol/palettes.asm"
+    else
 title_colours:
     db $44, $c4, $24, $f4, $f4, $1a, $16, $f6, $2c, $2c, $24, $f6, $f6, $a1, $16, $24
     db $61, $f6, $f6, $a4, $2c, $f6, $f6, $c1, $f6, $d4, $f6, $f4, $f4, $f4, $f4, $f4
@@ -394,6 +397,8 @@ colours_4_3:
 colours_4_4:
     db $11, $24, $24, $f4, $f4, $a6, $16, $51, $2c, $2c, $24, $14, $f4, $a1, $16, $f1
     db $81, $81, $fe, $a4, $2c, $01, $f1, $e4, $61, $61, $21, $f1, $f1, $f1, $f1, $f1
+
+    endif
 
 ; Demo input: IRQ countdown (little-endian) and held pad bits.
 attract_movie:
