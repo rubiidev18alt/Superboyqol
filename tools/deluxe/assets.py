@@ -160,9 +160,12 @@ def main():
                             else c for x,c in enumerate(row)] for y,row in enumerate(pix)]
                 # The question mark uses true dark ink even on night sheets
                 # where the legacy converter mapped its ink to backdrop zero.
+                slot = core[sym['p_block_slots'] + sheet]
                 if 0x28 <= tile <= 0x2b:
-                    pix = [[1 if b >> x & 1 else 11 for x in reversed(range(8))]
+                    pix = [[1 if b >> x & 1 else slot for x in reversed(range(8))]
                            for b in core[addr:addr+8]]
+                elif any(slot in row for row in pix):
+                    raise ValueError(f'block palette slot {slot} shared by sheet {sheet}, tile {tile}')
             start = 3*BANK+8192*sheet+32*tile
             rom[start:start+32] = replacements.get(tile) or pack(pix)
     # Pre-bake a 4-pose spin for each stage's two stacked coin tiles.

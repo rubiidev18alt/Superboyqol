@@ -6,7 +6,8 @@
 #include <string.h>
 #include "libretro.h"
 
-static uint16_t pad;
+static uint16_t pad, block_face, block_ink;
+static bool check_blocks;
 static bool picture, check_scroll, check_actors;
 /* Bounding boxes in RGB565 output, not game-side sprite coordinates. */
 struct bounds { int left, right, top; };
@@ -49,6 +50,12 @@ static void video(const void *d, unsigned w, unsigned h, size_t pitch) {
      * not enough: a wrong VDP initialization can leave the picture blank. */
     picture = false;
     if (!d || h <= 24 || w < 32) return;
+    if (check_blocks && w == 256 && h == 192) {
+        /* Top edge of the first stationary 1-1 question block. */
+        const uint16_t *row = (const uint16_t *)((const uint8_t *)d + 112*pitch);
+        block_face = row[184];
+        block_ink = row[185];
+    }
     if (check_scroll && w == 256 && h == 192) {
         memcpy(floor_line, (const uint8_t *)d + pitch * 187 + 2 * 40, sizeof floor_line);
         if (check_actors) {
@@ -251,6 +258,25 @@ static int generic_actors(const uint8_t *ram) {
     return shown < 16 || rise < 24 || travel < 24 || first_enemy-prev_enemy < 6;
 }
 
+static int block_cycle(void) {
+    static const uint16_t ramp[] = {0xffea, 0xfd40, 0xaaa0, 0xfd40};
+    check_blocks = true;
+    hold(0, 140); hold(1u << RETRO_DEVICE_ID_JOYPAD_B, 1); hold(0, 120);
+    /* Sync on entry to the bright phase, then check two full loops. */
+    for (unsigned i = 0; i <= 32; ++i) {
+        uint16_t prev = block_face;
+        hold(0, 1);
+        if (prev != ramp[0] && block_face == ramp[0]) break;
+        if (i == 32) return 1;
+    }
+    for (unsigned i = 0; i < 64; ++i) {
+        if (block_face != ramp[(i/8)%4] || block_ink != 0) return 1;
+        hold(0, 1);
+    }
+    puts("Question block: two 32-frame palette cycles, ink fixed.");
+    return 0;
+}
+
 /* Read-only A/B benchmark. Validate the full title and first gameplay window,
  * including the left edge retained by the stage primer, not just the HUD. */
 static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
@@ -287,7 +313,7 @@ static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
 }
 
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera|--generic-actors|--opening|--polish-opening\n", argv[0]); return 2; }
+    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[262144];
@@ -302,7 +328,8 @@ int main(int argc, char **argv) {
     bool actors = !strcmp(argv[2], "--generic-actors");
     bool polish = !strcmp(argv[2], "--polish-opening");
     bool bench = polish || !strcmp(argv[2], "--opening");
-    bool test = idle || controls || camera || actors || bench;
+    bool blocks = !strcmp(argv[2], "--block-cycle");
+    bool test = blocks || idle || controls || camera || actors || bench;
     FILE *movie = test ? NULL : fopen(argv[2], "r");
     if (!test && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
@@ -316,7 +343,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
+                 (blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
     retro_unload_game();
     retro_deinit();
     return result;

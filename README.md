@@ -16,10 +16,10 @@ or two tiles without changing the controls. [Changes, build and checks](docs/gen
 
 ## Try the Generic polish build
 
-[Download the playtest ROM](releases/superboy-generic-polish-rc1.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
+[Download the playtest ROM](releases/superboy-generic-polish-rc2.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
 
 This opt-in build adds braking on reversals, press-only firing, brighter
-block details, and four new impact/reward sounds. Starting 1-1 takes 20
+block details, pulsing gold question blocks, and four new impact/reward sounds. Starting 1-1 takes 20
 frames instead of 38. The stable release above is unchanged.
 
 ## Play Deluxe v0.2

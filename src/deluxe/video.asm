@@ -455,6 +455,8 @@ dx_tileset:
     ld bc,$1fbe
     otir
     ifdef POLISH
+    xor a                     ; start each gameplay sheet at full brightness
+    call p_block_colour
     ld a,(p_font_loaded)
     or a
     jr nz,.palette_done
@@ -607,6 +609,12 @@ dx_animate:
     add a,$a0
     ld d,a
     di
+    ifdef POLISH
+    ld a,e                    ; coin phase * 64
+    rlca
+    rlca
+    call p_block_colour
+    endif
     ld hl,$1300              ; tile $98, two 8x8 halves
     call dx_address
     ld a,12

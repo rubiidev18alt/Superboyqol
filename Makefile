@@ -119,6 +119,7 @@ build/superboy-polish.sms: $(DX_SOURCES) $(wildcard src/generic/*.asm src/playte
 polish-test: polish build/replay
 	build/replay build/superboy-polish.sms --qol-controls
 	build/replay build/superboy-polish.sms --deluxe-camera
+	build/replay build/superboy-polish.sms --block-cycle
 	build/replay build/superboy-polish.sms --polish-opening
 	build/replay build/superboy-polish.sms --generic-actors
 	build/replay build/superboy-polish.sms --idle

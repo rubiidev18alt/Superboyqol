@@ -1,6 +1,6 @@
-# Generic polish playtest (RC1)
+# Generic polish playtest (RC2)
 
-[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc1.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
+[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc2.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
 
 This build keeps the balanced Generic layouts. Try running at full speed and
 pressing the opposite direction, then try the same turn near a ledge. The
@@ -9,15 +9,19 @@ opposing speeds cancel out. Account for about one tile of skid from a full
 run. Top speed, the short-hop release and the full-height jump are unchanged.
 When powered up, **2** fires on press; letting go of run no longer wastes a shot.
 
-Bricks and ground have highlighted edges; question marks keep dark ink on a
-bright face even on night sheets. Only tile pixels change, not collision IDs.
+Bricks and ground have highlighted edges. In RC2, the face of each live question
+block cycles **bright gold → amber → dark copper → amber**, then repeats.
+Each shade lasts eight gameplay ticks. The question-mark ink stays black;
+spent blocks, other scenery, sprites and HUD colours stay unchanged. Each
+stage sheet reserves one background palette entry for the pulse; no map,
+collision, or per-block tile updates are needed.
 Four PSG cues distinguish bumping a brick from breaking it, enemy contact
 from collecting a coin, and earning an extra life from an ordinary pickup.
 They borrow the effects voice rather than stopping the stage music.
 
 ## Measured on Genesis Plus GX (NTSC-U)
 
-| Same cold boot and input | v0.3.1 | RC1 |
+| Same cold boot and input | v0.3.1 | RC2 |
 | --- | ---: | ---: |
 | Start press to active 1-1 | 38 frames | 20 frames |
 | First leftward pixel after reversing a full rightward run | frame 18 | frame 10 |
@@ -40,19 +44,18 @@ The card itself (world, player and life count) is still displayed.
 make polish                             # build/superboy-polish.sms
 make verify generic                     # stock still matches its original
 cmp build/superboy-generic.sms releases/superboy-generic-v0.3.1.sms
-cmp build/superboy-polish.sms releases/superboy-generic-polish-rc1.sms
+cmp build/superboy-polish.sms releases/superboy-generic-polish-rc2.sms
 make polish-test GPGX=/path/to/Genesis-Plus-GX
 build/replay releases/superboy-generic-v0.3.1.sms --opening  # A/B baseline
 ```
 
 Use GNU Make, SjASMPlus 1.21.1, Python 3 and the [pinned emulator for tests](playthrough.md).
-RC1 SHA-256: `35211ee9a94858b40f1876df1b8241462546c4ef149abffe29c4f871167ce707`.
-The focused checks cover movement, the opening benchmark, fine scrolling with
+RC2 SHA-256: `ce8c9f54eed7c07936624be28551c75b08a59881c20cfdaf97232413cbcb0bc1`.
+The focused checks cover movement, the opening benchmark, two rendered question-block colour cycles, fine scrolling with
 a fixed HUD, scrolling enemies and coin popups, and five timeouts through
 game over and attract mode. The controller recording
-`tests/polish-all-stages.pad` then clears all 16 stages from reset: 4-4
-completes at frame 35,190 and the recording ends back at 1-1 on frame
-35,218 with five lives. This is a different route from v0.3.1’s recording,
+`tests/polish-all-stages.pad` then clears all 16 stages from reset: the recording ends back at 1-1 on
+frame 41,503 with five lives. This is a different route from v0.3.1’s recording,
 not a benchmark of total loading time. Physical hardware has not been tested.
 
 ## Next playtest priorities

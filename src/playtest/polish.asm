@@ -176,3 +176,31 @@ p_prime_columns:
     ld a,1
     ld (scroll_request),a
     ret
+
+; IRQs are already masked by the tileset or coin animation transfer. A is
+; phase 0..3. Change one background CRAM entry, never the sprite palette.
+p_block_colour:
+    ld c,a
+    ld a,(dx_sheet)
+    ld hl,p_block_slots
+    ld b,0
+    push bc
+    ld c,a
+    add hl,bc
+    ld a,(hl)
+    pop bc
+    or a                       ; no reserved colour on title or stage cards
+    ret z
+    out ($bf),a
+    ld a,$c0
+    out ($bf),a
+    ld hl,p_block_ramp
+    add hl,bc
+    ld a,(hl)
+    out ($be),a
+    ret
+p_block_ramp: db $1f,$0b,$06,$0b    ; bright gold, amber, copper, amber
+p_block_slots:
+    db 0
+    ds 14,9
+    db 3,9,0                  ; sheet 15 already uses colour 9 elsewhere
