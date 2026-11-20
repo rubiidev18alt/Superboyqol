@@ -17,6 +17,9 @@
     include "generic/feel.asm"
     ifdef POLISH
     include "playtest/polish.asm"
+    ifdef RELEASE_1
+    include "release/motion.asm"
+    endif
     endif
     endif
     ifdef SMB_ASSETS

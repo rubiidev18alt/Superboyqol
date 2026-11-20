@@ -1370,7 +1370,11 @@ loc_49ee:
     and a
     jp z,loc_4a51
     call probe_left
+    ifdef RELEASE_1
+    jp nz,v1_wall_left_return
+    else
     jp nz,loc_4a4e
+    endif
     ld hl,(player_y)
     ld a,h
     cp $09
@@ -1427,7 +1431,11 @@ loc_4a48:
 
 loc_4a4e:
     ifdef QOL
+    ifdef RELEASE_1
+    call v1_drag_left
+    else
     call shared.brake_left
+    endif
     else
     dec (ix+$01)
     endif
@@ -1437,7 +1445,11 @@ loc_4a51:
     and a
     jp z,loc_4ae2
     call probe_right
+    ifdef RELEASE_1
+    jp nz,v1_wall_right_return
+    else
     jp nz,loc_4add
+    endif
     ld hl,(player_y)
     ld a,(ix+$01)
     and a
@@ -1526,7 +1538,11 @@ loc_4ad2:
 
 loc_4ad8:
     ifdef QOL
+    ifdef RELEASE_1
+    call v1_drag_right
+    else
     call shared.brake_right
+    endif
     else
     dec (ix+$02)
     endif
@@ -1541,7 +1557,11 @@ loc_4ae2:
     jp apply_gravity
 
 apply_gravity:
+    ifdef RELEASE_1
+    call v1_floor
+    else
     call probe_floor
+    endif
     jr z,loc_4b0e
     ld a,($e258)
     bit 4,a
@@ -1568,7 +1588,11 @@ loc_4afd:
 
 loc_4b0e:
     ifdef QOL
+    ifdef RELEASE_1
+    jp v1_fall
+    else
     jp shared.fall_if_released
+    endif
     ds $4b28 - $, 0
     else
     bit 1,(ix+$05)

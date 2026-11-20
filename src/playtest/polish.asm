@@ -5,13 +5,21 @@ p_accel_left:
     or a
     jr nz,p_braking
     ld a,(ix+1)
+    ifdef RELEASE_1
+    jp shared.accelerate        ; uniform one-unit ramp from rest
+    else
     jp generic_accelerate
+    endif
 p_accel_right:
     ld a,(ix+1)
     or a
     jr nz,p_braking
     ld a,(ix+2)
+    ifdef RELEASE_1
+    jp shared.accelerate        ; uniform one-unit ramp from rest
+    else
     jp generic_accelerate
+    endif
 p_braking:
     xor a
     ret

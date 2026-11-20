@@ -18,6 +18,7 @@ verify: $(ROM)
 clean:
 	$(RM) $(ROM) $(QOL_ROM) build/superboy-qol.ips build/replay build/superboy.sym build/qol.sym
 	$(RM) build/superboy-polish.sms build/polish.core build/polish.sym
+	$(RM) $(V1_ROM) build/v1.core build/v1.sym
 	$(RM) build/superboy-generic.sms build/generic.core build/generic.sym
 	$(RM) build/superboy-deluxe*.sms build/deluxe.core build/deluxe.sym build/import.core build/import.sym build/superboy-deluxe.ips
 	$(RM) -r build/maps build/qol-maps
@@ -127,3 +128,25 @@ polish-test: polish build/replay
 	build/replay build/superboy-polish.sms tests/polish-star.pad --star
 	build/replay build/superboy-polish.sms tests/polish-power-ups.pad --power-ups
 	build/replay build/superboy-polish.sms tests/polish-all-stages.pad
+
+# Initial stable release: all polish features plus the 1.0 motion model.
+V1_ROM := build/superboy-v1.0.sms
+.PHONY: release release-test
+release: $(V1_ROM)
+$(V1_ROM): $(DX_SOURCES) $(wildcard src/generic/*.asm src/playtest/*.asm src/release/*.asm) Makefile
+	mkdir -p build
+	$(SJASMPLUS) -DQOL -DDELUXE -DGENERIC -DPOLISH -DRELEASE_1 --raw=build/v1.core --sym=build/v1.sym src/superboy.asm
+	python3 tools/deluxe/assets.py build/v1.core build/v1.sym $@
+
+release-test: release build/replay
+	cmp $(V1_ROM) releases/superboy-v1.0.sms
+	build/replay $(V1_ROM) --release-motion
+	build/replay $(V1_ROM) --polish-opening
+	build/replay $(V1_ROM) --deluxe-camera
+	build/replay $(V1_ROM) --block-cycle
+	build/replay $(V1_ROM) --sprint
+	build/replay $(V1_ROM) --idle
+	build/replay $(V1_ROM) tests/v1-powered-pit.pad --powered-pit
+	build/replay $(V1_ROM) tests/v1-star.pad --star
+	build/replay $(V1_ROM) tests/v1-power-ups.pad --power-ups
+	build/replay $(V1_ROM) tests/v1-all-stages.pad

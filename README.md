@@ -1,7 +1,15 @@
 # Superboyqol
 Super Boy I for the Master System: a byte-identical disassembly and a separate playable QoL edition.
 
-## Play Generic v0.3.1 — ready-to-run ROM
+## Play Super Boy QoL 1.0 — initial release
+
+**[Download Super Boy QoL 1.0 for Master System](releases/superboy-v1.0.sms)** · [Release notes, checksum and build instructions](docs/v1.0.md)
+
+Open the standalone `.sms` in a Master System emulator. **1** jumps (tap for a short hop, hold for height). **2** runs; press it to fire when powered up. No patch or donor ROM is needed.
+
+New in 1.0: a steady run-up, a longer coast when you let go, quicker braking when you turn, and a softer start to falling. Hitting a wall now cancels momentum, and falling into a pit while powered up costs one life. All 16 stages, mushroom and flower blocks, star music and knockback, scrolling and shared sprite palettes carry forward from the polish builds.
+
+## Earlier standalone release: Generic v0.3.1
 
 **[Download the Master System ROM](releases/superboy-generic-v0.3.1.sms)** and
 open it in a Master System emulator. This edition uses the standalone Super
@@ -14,7 +22,7 @@ have new PSG effects. Enemies and the block-coin popup now scroll together
 with the scenery. Version 0.3.1 widens selected takeoffs and landings by one
 or two tiles without changing the controls. [Changes, build and checks](docs/generic.md).
 
-## Try the Generic polish build
+## Archived release candidate: Generic polish RC7
 
 [Download the playtest ROM](releases/superboy-generic-polish-rc7.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
 

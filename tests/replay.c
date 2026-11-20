@@ -78,7 +78,9 @@ static size_t batch(const int16_t *d, size_t n) { (void)d; return n; }
 
 /* Same pad reader, with an optional short 1-1 pickup route. Coordinates are
  * world pixels so camera movement cannot masquerade as mushroom movement. */
-static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
+static int replay(FILE *movie, const uint8_t *ram, bool items, bool star, bool pit) {
+    bool wall_stop = false, deep_pit = false, pit_respawn = false;
+    unsigned prev_speed = 0;
     unsigned protected_frames = 0, cleared_contacts = 0, before_size = 0;
     bool saw_star = false, expired = false, hurt_after_expiry = false;
     unsigned char nearby = 0;
@@ -116,6 +118,17 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
             if (stage < 0) {
                 if (ram[0x46] || ram[0x43] != 5 || ram[0x376] != 10 || ram[0x383]) continue;
                 stage = 0;
+            }
+            if (pit) {
+                /* Keep holding right into the block edge. A solid side hit
+                 * consumes both speed and fractional distance in one update. */
+                if ((ram[0x239] & 8) && prev_speed == 32 && !ram[0x23b] && !ram[0xb00]) wall_stop = true;
+                prev_speed = ram[0x23b];
+                if (ram[0x372] && ram[0x36c] >= 192 && ram[0x36c] <= 210 && ram[0x43] == 5) deep_pit = true;
+                if (ram[0x43] == 4 && deep_pit && !ram[0x372] && !ram[0x373] &&
+                    ram[0x376] == 10 && ram[0x36c] == 160) pit_respawn = true;
+                if (ram[0x383] || ram[0x46] || ram[0x43] < 4) return 1;
+                continue;
             }
             if (ram[0x383] || ram[0x43] != 5) {
                 fprintf(stderr, "Demo or life count changed at frame %u\n", frame);
@@ -240,6 +253,11 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
                 stage_visible = true;
             }
         }
+    }
+    if (pit) {
+        if (fields != EOF || ferror(movie) || !wall_stop || !deep_pit || !pit_respawn) return 1;
+        puts("Solid contact cleared run momentum; powered-up pit fall cost one life and respawned in 1-1.");
+        return 0;
     }
     if (star) {
         if (fields != EOF || ferror(movie) || !hurt_after_expiry || !expired || !cleared_contacts ||
@@ -421,6 +439,44 @@ static int world_x(const uint8_t *ram) {
     return 8*ram[0x235] + ram[0xb11] + ram[0x36d];
 }
 
+/* Cold boot on the starting platform. Check the *shape* of takeoff and
+ * braking, not just the final walk/run caps. RAM is observed, never patched. */
+static int release_motion(const uint8_t *ram) {
+    const unsigned jump = 1u << RETRO_DEVICE_ID_JOYPAD_B;
+    const unsigned run = (1u << RETRO_DEVICE_ID_JOYPAD_RIGHT) | (1u << RETRO_DEVICE_ID_JOYPAD_A);
+    hold(0, 140); hold(jump, 1); hold(0, 120);
+    unsigned floor = ram[0x36c], heights[2];
+    for (unsigned j = 0; j < 2; ++j) {
+        unsigned apex = floor, last = floor, rates = 0;
+        for (unsigned i = 0; i < 150; ++i) {
+            hold(i < (j ? 65u : 6u) ? jump : 0, 1);
+            unsigned y = ram[0x36c], rate = ram[0xb01];
+            if (y > last + 4 || y > floor || rate > 64) return 1;
+            if (rate == 64) rates |= 4;       /* terminal */
+            else if (rate >= 17) rates |= 2; /* accelerating */
+            else if (rate) rates |= 1;       /* leaving the apex */
+            if (y < apex) apex = y;
+            last = y;
+        }
+        if (rates != 7 || last != floor || ram[0xb01] || ram[0xb02]) return 1;
+        heights[j] = floor - apex;
+    }
+    if (heights[0] != 19 || heights[1] != 79) return 1;
+    for (unsigned i = 1; i <= 16; ++i) {
+        hold(run, 1);
+        if (ram[0x23b] != 2*i || ram[0x23a]) return 1;
+    }
+    int start = world_x(ram);
+    for (unsigned i = 1; i <= 16; ++i) {
+        hold(0, 1);
+        if (ram[0x23b] != 32-2*i || ram[0x23a]) return 1;
+    }
+    int coast = world_x(ram)-start;
+    printf("1.0 motion: 16-frame run ramp, %d px neutral coast, %u/%u px hops; gravity reached cap and reset on landing.\n",
+           coast, heights[0], heights[1]);
+    return coast < 15 || coast > 17;
+}
+
 static int sprint(const uint8_t *ram) {
     const unsigned run = 1u << RETRO_DEVICE_ID_JOYPAD_A;
     const unsigned right = run | (1u << RETRO_DEVICE_ID_JOYPAD_RIGHT);
@@ -475,7 +531,8 @@ static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
 int main(int argc, char **argv) {
     bool items = argc == 4 && !strcmp(argv[3], "--power-ups");
     bool star = argc == 4 && !strcmp(argv[3], "--star");
-    if (argc != 3 && !items && !star) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad [--power-ups|--star]|--idle|--qol-controls|--deluxe-camera|--sprint|--sprint-actors|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
+    bool pit = argc == 4 && !strcmp(argv[3], "--powered-pit");
+    if (argc != 3 && !items && !star && !pit) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad [--power-ups|--star|--powered-pit]|--release-motion|--idle|--qol-controls|--deluxe-camera|--sprint|--sprint-actors|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[262144];
@@ -487,13 +544,14 @@ int main(int argc, char **argv) {
     bool idle = !strcmp(argv[2], "--idle");
     bool controls = !strcmp(argv[2], "--qol-controls");
     bool camera = !strcmp(argv[2], "--deluxe-camera");
+    bool motion = !strcmp(argv[2], "--release-motion");
     bool speed = !strcmp(argv[2], "--sprint");
     bool fast_actors = !strcmp(argv[2], "--sprint-actors");
     bool actors = fast_actors || !strcmp(argv[2], "--generic-actors");
     bool polish = !strcmp(argv[2], "--polish-opening");
     bool bench = polish || !strcmp(argv[2], "--opening");
     bool blocks = !strcmp(argv[2], "--block-cycle");
-    bool test = speed || blocks || idle || controls || camera || actors || bench;
+    bool test = motion || speed || blocks || idle || controls || camera || actors || bench;
     FILE *movie = test ? NULL : fopen(argv[2], "r");
     if (!test && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
@@ -507,7 +565,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (speed ? sprint(ram) : blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram, fast_actors ? 70 : 77) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram, items, star));
+                 (motion ? release_motion(ram) : speed ? sprint(ram) : blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram, fast_actors ? 70 : 77) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram, items, star, pit));
     retro_unload_game();
     retro_deinit();
     return result;
