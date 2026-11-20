@@ -1,8 +1,21 @@
-# Generic v0.3
+# Generic v0.3.1
 
-[**Playable ROM**](../releases/superboy-generic-v0.3.sms) · Sega Master System,
+[**Playable ROM**](../releases/superboy-generic-v0.3.1.sms) · Sega Master System,
 256 KiB, Sega mapper with cartridge RAM. Uses the standalone Super Boy / QoL
 artwork and soundtrack. Does not import Super Mario Bros. assets.
+
+## Layout balance in v0.3.1
+
+Selected gaps are 8 or 16 pixels narrower. For example, the first five-tile
+pit in **1-2** now spans three tiles, the consecutive seven-tile jumps in
+**2-4** each span five, and the longest gap in **3-4** drops from eleven tiles
+to nine. In **4-2**, two wide pits gain a short stretch of floor on their
+approach side. No pit is filled completely.
+
+The edits replace empty columns in 13 stages. The opening course (1-1),
+3-1 and the final maze (4-4) retain their layouts. No enemies, timers, exits
+or movement settings changed. The [previous ROM](../releases/superboy-generic-v0.3.sms)
+is still available for the original difficulty.
 
 ## Feel and sound
 
@@ -34,7 +47,7 @@ The effects use the third PSG voice so they don't interrupt the melody.
 
 `make generic` builds `build/superboy-generic.sms` with SjASMPlus 1.21.1,
 GNU Make and Python 3 (standard library only). The release SHA-256 is
-`0cea48c858d3ef0779c08b27d60fe816e9f6136e2004530af9c021fe9ec71a51`.
+`aff4eadb359f3604a23820d111f1c39db17fce43d7d0e7636198cb7f1d9c3534`.
 The stock, QoL and Deluxe build targets are unchanged.
 
 With the [pinned Genesis Plus GX libretro core](playthrough.md) built:
@@ -53,4 +66,4 @@ backward snap. Tests use NTSC-U; physical hardware has not been tested.
 
 The same test target also checks the idle/game-over path and replays
 `tests/generic-all-stages.pad` from reset. The packaged ROM clears 4-4 at
-frame 42,976 and finishes the recording back at 1-1 with five lives.
+frame 41,061 and finishes the recording back at 1-1 with five lives.
