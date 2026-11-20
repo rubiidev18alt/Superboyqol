@@ -17,6 +17,7 @@ verify: $(ROM)
 
 clean:
 	$(RM) $(ROM) $(QOL_ROM) build/superboy-qol.ips build/replay build/superboy.sym build/qol.sym
+	$(RM) build/superboy-generic.sms build/generic.core build/generic.sym
 	$(RM) build/superboy-deluxe*.sms build/deluxe.core build/deluxe.sym build/import.core build/import.sym build/superboy-deluxe.ips
 	$(RM) -r build/maps build/qol-maps
 
@@ -90,3 +91,18 @@ deluxe-smb-test: deluxe-smb build/replay
 	build/replay build/superboy-deluxe-smb.sms --qol-controls
 	build/replay build/superboy-deluxe-smb.sms --deluxe-camera
 	build/replay build/superboy-deluxe-smb.sms tests/deluxe-smb-all-stages.pad
+
+# Self-contained follow-up, with no SMB donor or py65 dependency.
+.PHONY: generic generic-test
+generic: build/superboy-generic.sms
+build/superboy-generic.sms: $(DX_SOURCES) $(wildcard src/generic/*.asm) Makefile
+	mkdir -p build
+	$(SJASMPLUS) -DQOL -DDELUXE -DGENERIC --raw=build/generic.core --sym=build/generic.sym src/superboy.asm
+	python3 tools/deluxe/assets.py build/generic.core build/generic.sym $@
+
+generic-test: generic build/replay
+	build/replay build/superboy-generic.sms --qol-controls
+	build/replay build/superboy-generic.sms --deluxe-camera
+	build/replay build/superboy-generic.sms --generic-actors
+	build/replay build/superboy-generic.sms --idle
+	build/replay build/superboy-generic.sms tests/generic-all-stages.pad

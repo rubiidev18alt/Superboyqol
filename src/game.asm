@@ -359,7 +359,11 @@ loc_4253:
     jr z,game_loop
     xor a
     ld (frame_ready),a
+    ifdef GENERIC
+    call g_tick
+    else
     call tick_stage_clock
+    endif
     call update_player
     ifdef DELUXE
     call dx_animate
@@ -367,9 +371,15 @@ loc_4253:
     call animate_hit_block
     endif
     call sub_5014
+    ifdef GENERIC
+    call update_player
+    call g_frame
+    ds 3,0
+    else
     call upload_other_sprites
     call update_player
     call draw_player
+    endif
     jr game_loop
 
 sub_4281:
@@ -1192,7 +1202,11 @@ loc_4935:
     jr z,loc_4950
     ifdef QOL
     ld a,(ix+1)
+    ifdef GENERIC
+    call generic_accelerate
+    else
     call shared.accelerate
+    endif
     ld (ix+1),a
     ds $494e - $, 0
     else
@@ -1216,7 +1230,11 @@ loc_4950:
     jr z,loc_496a
     ifdef QOL
     ld a,(ix+2)
+    ifdef GENERIC
+    call generic_accelerate
+    else
     call shared.accelerate
+    endif
     ld (ix+2),a
     ds $4968 - $, 0
     else
@@ -1274,7 +1292,11 @@ loc_49ae:
     ex af,af'
 
 loc_49b6:
+    ifdef GENERIC
+    cp 48                  ; no zero-velocity hold after the apex
+    else
     cp $40
+    endif
     jr nc,loc_49d9
     ld hl,jump_steps
     add a,l
@@ -3857,7 +3879,11 @@ loc_58e2:
     and a
     ret nz
     ifdef DELUXE
+    ifdef GENERIC
+    call g_column
+    else
     call dx_new_column
+    endif
     else
     call upload_playfield
     endif
@@ -3908,6 +3934,13 @@ loc_5943:
     ret
 
 jump_steps:
+    ifdef GENERIC
+    ; Integer samples of a 79-pixel parabola; A indexes from 0.
+    rept 48,n
+    db ((79*(96*(n+1)-(n+1)*(n+1))+1152)/2304)-((79*(96*n-n*n)+1152)/2304)
+    endr
+    ds 24,0
+    else
     ifdef QOL
     ; A held jump rises quickly, then tapers to its apex. Release cuts the rise.
     db 3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2
@@ -3921,6 +3954,7 @@ jump_steps:
     db $01, $01, $01, $01, $00, $01, $01, $01, $01, $00, $01, $01, $01, $00, $01, $01  ; $5973
     db $00, $00, $00, $01, $00, $01, $00, $00, $01, $00, $00, $01, $00, $00, $00, $01  ; $5983
     db $00, $00, $00, $00, $ff, $00, $00, $ff  ; $5993
+    endif
     endif
 
 sub_599b:
@@ -4173,6 +4207,10 @@ upload_first_sprites:
     jp loc_5b6c
 
 upload_other_sprites:
+    ifdef GENERIC
+    jp g_actor_view
+    ds $5b66 - $,0
+    else
     ld hl,$e0b9
     ld de,$e119
     ld bc,$0060
@@ -4182,6 +4220,7 @@ upload_other_sprites:
     jp nz,loc_5b6f
     ld hl,$e0b9
 
+    endif
 loc_5b66:
     ld de,$3020
     ld bc,$0060
@@ -4511,7 +4550,11 @@ loc_5d5b:
 irq_update:
     in a,($bf)
     and $40
+    ifdef GENERIC
+    call g_present
+    else
     ld (sprite_overflow),a
+    endif
     xor a
     cpl
     ld (frame_ready),a
@@ -4526,7 +4569,12 @@ irq_update:
     ret z
     ld a,(frame_counter)
     and $01
+    ifdef GENERIC
+    ret
+    ds 2,0
+    else
     jp z,update_actors_irq
+    endif
     ret
 
 draw_player:

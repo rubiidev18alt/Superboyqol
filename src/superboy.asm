@@ -11,6 +11,10 @@
     retn                      ; SMS pause NMI: no game state change
     ds $100 - $, 0
     include "deluxe/video.asm"
+    ifdef GENERIC
+    include "generic/actors.asm"
+    include "generic/feel.asm"
+    endif
     ifdef SMB_ASSETS
     include "deluxe/music.asm"
     endif

@@ -28,13 +28,21 @@ modulation_ad50:
     db $0f, $80, $01, $02, $03, $04, $04, $03, $00, $01, $00, $01, $00, $02, $0f, $80
 
 effect_pointers:
+    ifdef GENERIC
+    dw generic_hop,generic_big_hop
+    else
     dw effect_01
     dw effect_02
+    endif
     dw effect_03
     dw effect_04
     dw effect_05
     dw effect_06
+    ifdef GENERIC
+    dw generic_coin_chime
+    else
     dw effect_07
+    endif
     dw effect_08
     dw effect_09
     dw effect_10

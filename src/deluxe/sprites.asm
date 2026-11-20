@@ -21,6 +21,13 @@ dx_sprites:
     ld a,(ix+0)
     cp $c0
     jr nc,.hide
+    ifdef GENERIC
+    ld a,(dx_slot)
+    call g_pair
+    ld a,(g_ink2)
+    cp $ff
+    jr z,.hide
+    endif
     ld a,(ix+3)
     and 15
     jr z,.hide
@@ -48,9 +55,17 @@ dx_sprites:
     ld a,(dx_phase)
     ld b,a
     ld a,(dx_slot)
+    ifdef GENERIC
+    or a                      ; popup slot 0 is a world object, not the player
+    jr z,.world
+    endif
     cp 8
     ld a,(ix+1)
     jr c,.x
+    ifdef GENERIC
+.world:
+    ld a,(ix+1)
+    endif
     sub b
     jr nc,.x
     ; Don't wrap a sprite through the right side of the screen.
@@ -89,6 +104,21 @@ dx_sprites:
     ld e,a
     ld a,(dx_colour)
     ld b,a
+    ifdef GENERIC
+    push hl
+    push de
+    ld a,(dx_slot)
+    ld e,a
+    ld d,0
+    ld hl,g_layers
+    add hl,de
+    ld a,(g_ink2)
+    cp (hl)
+    ld (hl),a
+    pop de
+    pop hl
+    jr nz,.miss
+    endif
     ld a,(hl)
     cp d
     jr nz,.miss
@@ -119,6 +149,13 @@ dx_sprites:
     inc a
     dec (hl)
     jp nz,.loop
+    ifdef GENERIC
+    pop ix
+    ld a,(g_batch)
+    or a
+    ret nz
+    jp g_queue
+    else
     di
     ld hl,$3f00
     call dx_address
@@ -133,6 +170,7 @@ dx_sprites:
     ei
     pop ix
     ret
+    endif
 
 dx_upload_shape:               ; D=bank, E=pattern, B=ink
     ld a,(dx_slot)
@@ -184,6 +222,11 @@ dx_upload_shape:               ; D=bank, E=pattern, B=ink
     ld h,a
     ld a,8
     ld ($fffc),a
+    ifdef GENERIC
+    ld a,(g_ink2)
+    or a
+    jp nz,g_paint_pair
+    endif
     ld c,32
 .row:
     ld e,(hl)

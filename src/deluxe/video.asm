@@ -51,6 +51,10 @@ dx_init:
     ld (dx_ring),a
     ld (dx_phase),a
     ld (dx_bank),a
+    ifdef GENERIC
+    ld (g_ready),a
+    ld (g_batch),a
+    endif
     ld ($fffc),a
     ld a,2
     ld ($ffff),a
@@ -72,6 +76,14 @@ dx_scroll_reg:
     ld a,(dx_phase)
     add a,c
     neg
+    ifdef GENERIC
+    ld (g_scroll),a
+    ld a,(actors_enabled)
+    or a
+    ret nz
+    ld a,(g_scroll)
+    ld (g_latched),a
+    endif
     di
     out ($bf),a
     ld a,$88
@@ -107,6 +119,13 @@ dx_new_column:
 .subpixel:
     ld (dx_phase),a
     call dx_scroll_reg
+    ifdef GENERIC
+    ld a,(dx_ring)
+    dec a
+    ld hl,playfield+31
+    ld c,32
+    jp g_stream_column
+    else
     ld de,$345f
     ld hl,playfield+31
     ld b,22
@@ -129,6 +148,7 @@ dx_new_column:
 .no_d:
     djnz .row
     ret
+    endif
 
 ; Map a legacy name address to a native 2-byte entry in the circular plane.
 dx_name_addr:
@@ -344,6 +364,12 @@ dx_copy:
     ret
 
 dx_tileset:
+    ifdef GENERIC
+    push af
+    xor a
+    ld (g_ready),a             ; do not interrupt a streaming VRAM transfer
+    pop af
+    endif
     ld (dx_sheet),a
     ; Each half-bank contains one full 256-tile sheet. Map in bounded bursts
     ; so sound/IRQ code always executes with the normal slot-2 page selected.
@@ -497,6 +523,11 @@ dx_lookahead:
     add hl,de                 ; 22 * ID
     ld de,map_columns
     add hl,de
+    ifdef GENERIC
+    ld a,(dx_ring)
+    ld c,1
+    call g_stream_column
+    else
     ld de,$3440
     ld b,22
 .row:
@@ -512,6 +543,7 @@ dx_lookahead:
     inc d
 .same:
     djnz .row
+    endif
 .end:
     pop hl
     ret

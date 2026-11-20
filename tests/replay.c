@@ -7,7 +7,23 @@
 #include "libretro.h"
 
 static uint16_t pad;
-static bool picture, check_scroll;
+static bool picture, check_scroll, check_actors;
+/* Bounding boxes in RGB565 output, not game-side sprite coordinates. */
+struct bounds { int left, right, top; };
+static struct bounds popup, walker;
+static struct bounds box(const uint8_t *data, size_t pitch, uint16_t colour,
+                         int x0, int x1, int y0, int y1) {
+    struct bounds b = {x1, -1, y1};
+    for (int y = y0; y < y1; ++y) {
+        const uint16_t *row = (const uint16_t *)(data + y * pitch);
+        for (int x = x0; x < x1; ++x) if (row[x] == colour) {
+            if (x < b.left) b.left = x;
+            if (x > b.right) b.right = x;
+            if (y < b.top) b.top = y;
+        }
+    }
+    return b;
+}
 static uint16_t floor_line[160], captions[192];
 static bool environment(unsigned cmd, void *data) {
     if (cmd == RETRO_ENVIRONMENT_GET_INPUT_BITMASKS) return true;
@@ -35,6 +51,10 @@ static void video(const void *d, unsigned w, unsigned h, size_t pitch) {
     if (!d || h <= 24 || w < 32) return;
     if (check_scroll && w == 256 && h == 192) {
         memcpy(floor_line, (const uint8_t *)d + pitch * 187 + 2 * 40, sizeof floor_line);
+        if (check_actors) {
+            popup = box(d, pitch, 0xfd40, 48, 123, 52, 112);
+            walker = box(d, pitch, 0xaaa0, 119, 200, 161, 176);
+        }
         memcpy(captions, (const uint8_t *)d + pitch * 4 + 2 * 24, sizeof captions);
     }
     const uint16_t *first_row = (const uint16_t *)((const uint8_t *)d + 24 * pitch);
@@ -194,8 +214,45 @@ static int deluxe_camera(const uint8_t *ram) {
     return steps < 48 || phases != 255;
 }
 
+/* Run under the first question block. Measure camera travel by matching the
+ * textured floor, not from RAM. Both the rotating coin poses must have the
+ * same world centre and the enemy must not snap back across a column seam. */
+static int generic_actors(const uint8_t *ram) {
+    unsigned jump = 1u << RETRO_DEVICE_ID_JOYPAD_B;
+    unsigned run = (1u << RETRO_DEVICE_ID_JOYPAD_RIGHT) | (1u << RETRO_DEVICE_ID_JOYPAD_A);
+    check_scroll = check_actors = true;
+    hold(0, 140); hold(jump, 1); hold(0, 120); hold(run, 77);
+    int scroll = 0, anchor = 0, shown = 0, travel = 0, rise = 0;
+    int first_scroll = 0, first_y = 0, prev_enemy = 0, first_enemy = 0;
+    for (int i = 0; i < 44; ++i) {
+        uint16_t old[160];
+        memcpy(old, floor_line, sizeof old);
+        hold(run | jump, 1);
+        int dx = 0;
+        while (dx <= 8 && memcmp(old+dx, floor_line, 150*sizeof *old)) ++dx;
+        if (dx > 8) return 1;
+        scroll += dx;
+        if (popup.right < 0 || !ram[0x233]) continue;
+        int centre = popup.left + popup.right + 2*scroll; /* half-pixel units */
+        int enemy = walker.left + scroll;
+        if (walker.right < 0) return 1;
+        if (!shown) {
+            anchor = centre; first_scroll = scroll; first_y = popup.top;
+            first_enemy = enemy;
+        } else if (centre != anchor || enemy > prev_enemy || prev_enemy-enemy > 2) {
+            fprintf(stderr, "Coin drift or enemy discontinuity at tick %d\n", i);
+            return 1;
+        }
+        prev_enemy = enemy;
+        travel = scroll-first_scroll; rise = first_y-popup.top; ++shown;
+    }
+    printf("Block coin: %d visible frames, %d px rise, %d px scroll; enemy advanced %d px.\n",
+           shown, rise, travel, first_enemy-prev_enemy);
+    return shown < 16 || rise < 24 || travel < 24 || first_enemy-prev_enemy < 6;
+}
+
 int main(int argc, char **argv) {
-    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera\n", argv[0]); return 2; }
+    if (argc != 3) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad|--idle|--qol-controls|--deluxe-camera|--generic-actors\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[262144];
@@ -207,8 +264,9 @@ int main(int argc, char **argv) {
     bool idle = !strcmp(argv[2], "--idle");
     bool controls = !strcmp(argv[2], "--qol-controls");
     bool camera = !strcmp(argv[2], "--deluxe-camera");
-    FILE *movie = idle || controls || camera ? NULL : fopen(argv[2], "r");
-    if (!idle && !controls && !camera && !movie) { perror(argv[2]); return 1; }
+    bool actors = !strcmp(argv[2], "--generic-actors");
+    FILE *movie = idle || controls || camera || actors ? NULL : fopen(argv[2], "r");
+    if (!idle && !controls && !camera && !actors && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
     retro_set_video_refresh(video);
     retro_set_audio_sample(audio);
@@ -220,7 +278,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
+                 (actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram));
     retro_unload_game();
     retro_deinit();
     return result;

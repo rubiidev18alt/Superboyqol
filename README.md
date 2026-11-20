@@ -1,6 +1,18 @@
 # Superboyqol
 Super Boy I for the Master System: a byte-identical disassembly and a separate playable QoL edition.
 
+## Play Generic v0.3 — ready-to-run ROM
+
+**[Download the Master System ROM](releases/superboy-generic-v0.3.sms)** and
+open it in a Master System emulator. This edition uses the standalone Super
+Boy/QoL assets: no patching, donor ROM, or asset import. **1** jumps (release
+for a short hop); **2** runs / fires when powered up.
+
+Compared with Deluxe v0.2, the first steps accelerate faster, the held jump
+follows a shorter parabolic rise, and small jumps, big jumps and coin pickups
+have new PSG effects. Enemies and the block-coin popup now scroll together
+with the scenery. [Changes, build and checks](docs/generic.md).
+
 ## Play Deluxe v0.2
 
 [Standalone IPS](releases/superboy-deluxe-v0.2.ips) · [1-1 gameplay with sound](docs/deluxe-preview.mp4) · [Build and SMB import guide](docs/deluxe.md)
