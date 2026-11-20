@@ -17,6 +17,9 @@ g_tick:
     ld a,(actors_enabled)
     or a
     ret z
+    ifdef POLISH
+    call p_run_tick
+    endif
     ld a,(frame_counter)
     and 1
     ret nz
@@ -29,7 +32,11 @@ g_tick:
 g_frame:
     ld a,1
     ld (g_batch),a
+    ifdef POLISH
+    call p_draw_player
+    else
     call draw_player
+    endif
     call upload_other_sprites
     xor a
     ld (g_batch),a

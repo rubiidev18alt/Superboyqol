@@ -16,9 +16,10 @@ or two tiles without changing the controls. [Changes, build and checks](docs/gen
 
 ## Try the Generic polish build
 
-[Download the playtest ROM](releases/superboy-generic-polish-rc3.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
+[Download the playtest ROM](releases/superboy-generic-polish-rc4.sms) · [Gameplay clip](docs/polish-opening.mp4) · [Measurements and test instructions](docs/polish.md)
 
-This opt-in build adds braking on reversals, press-only firing, pulsing gold question blocks,
+RC4 increases top running speed by 12.5% and adds [collectible invincibility stars](docs/polish-star.mp4).
+This opt-in build also adds braking on reversals, press-only firing, pulsing gold question blocks,
 and fixed mushroom/flower blocks instead of random drops. [See both pickups in 1-1](docs/polish-power-ups.mp4). Starting 1-1 takes 20
 frames instead of 38. The stable release above is unchanged.
 

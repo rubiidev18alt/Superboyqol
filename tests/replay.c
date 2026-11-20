@@ -78,7 +78,10 @@ static size_t batch(const int16_t *d, size_t n) { (void)d; return n; }
 
 /* Same pad reader, with an optional short 1-1 pickup route. Coordinates are
  * world pixels so camera movement cannot masquerade as mushroom movement. */
-static int replay(FILE *movie, const uint8_t *ram, bool items) {
+static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
+    unsigned protected_frames = 0, cleared_contacts = 0, before_size = 0;
+    bool saw_star = false, expired = false, hurt_after_expiry = false;
+    unsigned char nearby = 0;
     unsigned spawns = 0, mushroom_trip = 0, flower_ticks = 0;
     bool active = false, mushroom_collected = false;
     unsigned frame = 0, clears = 0;
@@ -111,6 +114,35 @@ static int replay(FILE *movie, const uint8_t *ram, bool items) {
             if (ram[0x383] || ram[0x43] != 5) {
                 fprintf(stderr, "Demo or life count changed at frame %u\n", frame);
                 return 1;
+            }
+            if (star) {
+                if (ram[0x46]) return 1;
+                if (ram[0x4f] == 16 && ram[0x251] == 1 && ram[0xb27] == 16) {
+                    if ((ram[0x235]-31)*8 + ram[0x8a] != 124*8) return 1;
+                    saw_star = true;
+                    before_size = ram[0x372];
+                }
+                unsigned timer = ram[0xb28];
+                if (timer) {
+                    if (!saw_star || expired || ram[0x372] != before_size || ram[0x373]) return 1;
+                    if (!protected_frames && timer < 239) return 1;
+                    ++protected_frames;
+                } else if (protected_frames) {
+                    expired = true;
+                    if (nearby && before_size && !ram[0x372] && ram[0x36c] < 184)
+                        hurt_after_expiry = true;
+                }
+                if (protected_frames) {
+                    for (int j = 0; j < 6; ++j) {
+                        unsigned mask = 1u << j;
+                        bool actor = ram[0x56 + 7*j] != 0;
+                        if (timer && (nearby & mask) && !actor) ++cleared_contacts;
+                        nearby &= ~mask;
+                        if (actor && abs(ram[0x8c + 2*j]-ram[0x36d]) < 20 &&
+                            abs(ram[0x8b + 2*j]-ram[0x36c]) < 20) nearby |= mask;
+                    }
+                }
+                continue;
             }
             if (items) {
                 bool now = ram[0x4f] == 0x10;
@@ -152,6 +184,13 @@ static int replay(FILE *movie, const uint8_t *ram, bool items) {
                 stage_visible = true;
             }
         }
+    }
+    if (star) {
+        if (fields != EOF || ferror(movie) || !hurt_after_expiry || !expired || !cleared_contacts ||
+            protected_frames < 478 || protected_frames > 490) return 1;
+        printf("Star: %u protected frames, %u enemy contact(s) cleared; vulnerable again after expiry.\n",
+               protected_frames, cleared_contacts);
+        return 0;
     }
     if (items) {
         if (fields != EOF || ferror(movie) || spawns != 2 || !mushroom_collected ||
@@ -262,11 +301,11 @@ static int deluxe_camera(const uint8_t *ram) {
 /* Run under the first question block. Measure camera travel by matching the
  * textured floor, not from RAM. Both the rotating coin poses must have the
  * same world centre and the enemy must not snap back across a column seam. */
-static int generic_actors(const uint8_t *ram) {
+static int generic_actors(const uint8_t *ram, unsigned approach) {
     unsigned jump = 1u << RETRO_DEVICE_ID_JOYPAD_B;
     unsigned run = (1u << RETRO_DEVICE_ID_JOYPAD_RIGHT) | (1u << RETRO_DEVICE_ID_JOYPAD_A);
     check_scroll = check_actors = true;
-    hold(0, 140); hold(jump, 1); hold(0, 120); hold(run, 77);
+    hold(0, 140); hold(jump, 1); hold(0, 120); hold(run, approach);
     int scroll = 0, anchor = 0, shown = 0, travel = 0, rise = 0;
     int first_scroll = 0, first_y = 0, prev_enemy = 0, first_enemy = 0;
     for (int i = 0; i < 44; ++i) {
@@ -315,6 +354,26 @@ static int block_cycle(void) {
     return 0;
 }
 
+static int world_x(const uint8_t *ram) {
+    return 8*ram[0x235] + ram[0xb11] + ram[0x36d];
+}
+
+static int sprint(const uint8_t *ram) {
+    const unsigned run = 1u << RETRO_DEVICE_ID_JOYPAD_A;
+    const unsigned right = run | (1u << RETRO_DEVICE_ID_JOYPAD_RIGHT);
+    const unsigned left = run | (1u << RETRO_DEVICE_ID_JOYPAD_LEFT);
+    hold(0, 140); hold(1u << RETRO_DEVICE_ID_JOYPAD_B, 1); hold(0, 120);
+    hold(right, 28);
+    int start = world_x(ram);
+    hold(right, 32);
+    int dx = world_x(ram)-start;
+    hold(left, 32);
+    start = world_x(ram);
+    hold(left, 16);
+    printf("Sprint: %d px right / 32 ticks, %d px left / 16 ticks.\n", dx, start-world_x(ram));
+    return dx != 72 || start-world_x(ram) != 36;
+}
+
 /* Read-only A/B benchmark. Validate the full title and first gameplay window,
  * including the left edge retained by the stage primer, not just the HUD. */
 static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
@@ -352,7 +411,8 @@ static int opening(const uint8_t *ram, const uint8_t *rom, bool expect_polish) {
 
 int main(int argc, char **argv) {
     bool items = argc == 4 && !strcmp(argv[3], "--power-ups");
-    if (argc != 3 && !items) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad [--power-ups]|--idle|--qol-controls|--deluxe-camera|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
+    bool star = argc == 4 && !strcmp(argv[3], "--star");
+    if (argc != 3 && !items && !star) { fprintf(stderr, "usage: %s rebuilt.sms movie.pad [--power-ups|--star]|--idle|--qol-controls|--deluxe-camera|--sprint|--sprint-actors|--generic-actors|--opening|--polish-opening|--block-cycle\n", argv[0]); return 2; }
     FILE *rom = fopen(argv[1], "rb");
     if (!rom) { perror(argv[1]); return 1; }
     static uint8_t bytes[262144];
@@ -364,11 +424,13 @@ int main(int argc, char **argv) {
     bool idle = !strcmp(argv[2], "--idle");
     bool controls = !strcmp(argv[2], "--qol-controls");
     bool camera = !strcmp(argv[2], "--deluxe-camera");
-    bool actors = !strcmp(argv[2], "--generic-actors");
+    bool speed = !strcmp(argv[2], "--sprint");
+    bool fast_actors = !strcmp(argv[2], "--sprint-actors");
+    bool actors = fast_actors || !strcmp(argv[2], "--generic-actors");
     bool polish = !strcmp(argv[2], "--polish-opening");
     bool bench = polish || !strcmp(argv[2], "--opening");
     bool blocks = !strcmp(argv[2], "--block-cycle");
-    bool test = blocks || idle || controls || camera || actors || bench;
+    bool test = speed || blocks || idle || controls || camera || actors || bench;
     FILE *movie = test ? NULL : fopen(argv[2], "r");
     if (!test && !movie) { perror(argv[2]); return 1; }
     retro_set_environment(environment);
@@ -382,7 +444,7 @@ int main(int argc, char **argv) {
     if (!retro_load_game(&game)) { fprintf(stderr, "Core rejected ROM\n"); return 1; }
     const uint8_t *ram = retro_get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
     int result = !ram || retro_get_memory_size(RETRO_MEMORY_SYSTEM_RAM) < 8192 ||
-                 (blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram, items));
+                 (speed ? sprint(ram) : blocks ? block_cycle() : bench ? opening(ram, bytes, polish) : actors ? generic_actors(ram, fast_actors ? 70 : 77) : camera ? deluxe_camera(ram) : controls ? qol_controls(ram) : idle ? idle_test(ram) : replay(movie, ram, items, star));
     retro_unload_game();
     retro_deinit();
     return result;

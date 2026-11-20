@@ -121,7 +121,9 @@ polish-test: polish build/replay
 	build/replay build/superboy-polish.sms --deluxe-camera
 	build/replay build/superboy-polish.sms --block-cycle
 	build/replay build/superboy-polish.sms --polish-opening
-	build/replay build/superboy-polish.sms --generic-actors
+	build/replay build/superboy-polish.sms --sprint-actors
+	build/replay build/superboy-polish.sms --sprint
 	build/replay build/superboy-polish.sms --idle
+	build/replay build/superboy-polish.sms tests/polish-star.pad --star
 	build/replay build/superboy-polish.sms tests/polish-power-ups.pad --power-ups
 	build/replay build/superboy-polish.sms tests/polish-all-stages.pad

@@ -145,7 +145,11 @@ loc_40d6:
 ; Display the stage card, copy layout/spawn data, then dispatch through stage_init_table.
 load_stage:
     ifdef QOL
+    ifdef POLISH
+    call p_reset_motion
+    else
     call shared.reset_motion
+    endif
     else
     ld hl,projectile_defaults
     endif
@@ -3322,7 +3326,11 @@ loc_54d4:
 loc_54e0:
     cp $0d
     ret nc
+    ifdef POLISH
+    jp p_castle_contact
+    else
     jp hurt_player
+    endif
 
 loc_54e6:
     ld hl,$e089
@@ -3421,7 +3429,12 @@ loc_5565:
     jp hurt_player
 
 loc_5574:
+    ifdef POLISH
+    jp p_top_contact
+p_normal_stomp:
+    else
     ld a,(ix+$00)
+    endif
     cp $10
     jr z,loc_55b2
     cp $01

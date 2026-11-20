@@ -1,12 +1,12 @@
-# Generic polish playtest (RC3)
+# Generic polish playtest (RC4)
 
-[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc3.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
+[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc4.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
 
 This build keeps the balanced Generic layouts. Try running at full speed and
 pressing the opposite direction, then try the same turn near a ledge. The
 player now brakes **through** the old velocity instead of freezing while two
 opposing speeds cancel out. Account for about one tile of skid from a full
-run. Top speed, the short-hop release and the full-height jump are unchanged.
+run. Walking speed, short-hop release and full jump height are unchanged.
 When powered up, **2** fires on press; letting go of run no longer wastes a shot.
 
 Bricks and ground have highlighted edges. In RC2, the face of each live question
@@ -19,11 +19,29 @@ Four PSG cues distinguish bumping a brick from breaking it, enemy contact
 from collecting a coin, and earning an extra life from an ordinary pickup.
 They borrow the effects voice rather than stopping the stage music.
 
-## Fixed power-up blocks (RC3)
+## Faster running and stars (RC4)
+
+Hold **2** and a direction: at full speed you now cover 72 pixels in 32
+logic ticks instead of 64 (2.25 instead of 2 pixels/tick). The extra pixel
+gets its own wall probe; the game does not speed up jump physics or enemies.
+
+Six question blocks now hold stars: one each in **1-1, 1-2, 2-1, 3-1,
+4-1 and 4-2**. In 1-1, hit the low question block between two bricks in the
+middle of the course (layout column 124). The star rises, then moves right.
+Touch it to cycle the player’s colours and defeat ordinary enemies on contact
+for **480 gameplay ticks** (about eight seconds on NTSC). It doesn’t grant
+size or fire, and pits and timeouts still work normally. Protection ends
+when the timer expires or a stage reloads.
+
+[Watch the star pickup and invincibility in 1-1](polish-star.mp4). The
+controller replay checks pickup, enemy contact without size loss, expiry,
+and damage from an enemy after protection ends.
+
+## Mushroom and fire flower blocks (introduced in RC3)
 
 In 1-1, the lone first question block always pays a coin. The first low
 question block in the brick row just beyond it always holds an upgrade.
-There are **16 designated blocks across the 12 non-castle stages**. Contents
+There are **16 mushroom/flower blocks across the 12 non-castle stages**. Contents
 are keyed to the block’s level column and row, not the jump timing, camera
 phase, or the order in which you hit blocks. Death/retry restores them.
 
@@ -38,13 +56,13 @@ phase, or the order in which you hit blocks. Death/retry restores them.
 
 [Watch the mushroom and fire flower pickups](polish-power-ups.mp4). The
 controller-only regression collects both in 1-1: it observes the mushroom
-travel 72 pixels and the emerged flower stay still for 148 frames while the
+travel 72 pixels and the emerged flower stay still for 285 frames while the
 camera moves. The asset build also checks that every listed location really
 contains both halves of a question block.
 
 ## Measured on Genesis Plus GX (NTSC-U)
 
-| Same cold boot and input | v0.3.1 | RC3 |
+| Same cold boot and input | v0.3.1 | RC4 |
 | --- | ---: | ---: |
 | Start press to active 1-1 | 38 frames | 20 frames |
 | First leftward pixel after reversing a full rightward run | frame 18 | frame 10 |
@@ -67,18 +85,18 @@ The card itself (world, player and life count) is still displayed.
 make polish                             # build/superboy-polish.sms
 make verify generic                     # stock still matches its original
 cmp build/superboy-generic.sms releases/superboy-generic-v0.3.1.sms
-cmp build/superboy-polish.sms releases/superboy-generic-polish-rc3.sms
+cmp build/superboy-polish.sms releases/superboy-generic-polish-rc4.sms
 make polish-test GPGX=/path/to/Genesis-Plus-GX
 build/replay releases/superboy-generic-v0.3.1.sms --opening  # A/B baseline
 ```
 
 Use GNU Make, SjASMPlus 1.21.1, Python 3 and the [pinned emulator for tests](playthrough.md).
-RC3 SHA-256: `fb59795241cf8fd518a92aa2bab0f6ad28646467ded9b7ca52afa74a9a7c79c2`.
+RC4 SHA-256: `88cb3829e5de96e269c0d85ad16f1274541a3f693667b9620a3e3db66967c465`.
 The focused checks cover movement, the opening benchmark, two rendered question-block colour cycles, fine scrolling with
 a fixed HUD, scrolling enemies and coin popups, and five timeouts through
 game over and attract mode. The controller recording
 `tests/polish-all-stages.pad` then clears all 16 stages from reset: the recording ends back at 1-1 on
-frame 40,272 with five lives. This is a different route from v0.3.1’s recording,
+frame 37,188 with five lives. This is a different route from v0.3.1’s recording,
 not a benchmark of total loading time. Physical hardware has not been tested.
 
 ## Next playtest priorities

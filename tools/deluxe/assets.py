@@ -200,8 +200,10 @@ def main():
     if 'p_mushroom_art' in sym:
         # Catch stale item coordinates if a layout edit removes or moves a ?.
         for stage in range(16):
-            rec = sym['p_item_blocks'] + stage*4
-            for x,y in (core[rec:rec+2], core[rec+2:rec+4]):
+            rec = sym['p_item_blocks'] + stage*6
+            for pair in range(rec, rec+6, 2):
+                x,y = core[pair:pair+2]
+                y &= 127
                 if x == 255:
                     continue
                 col = sym['stage_layouts'] + stage*272 + x
@@ -219,6 +221,13 @@ def main():
                 '.rrrrwwwwwwrrrr.', '....wwwwwwww....', '....wwkwwkww....',
                 '....wwkwwkww....', '....wwwwwwww....', '.....wwwwww.....',
                 '......wwww......')),
+            ('p_star_art', (
+                '.......yy.......', '.......yy.......', '......yyyy......',
+                '......yyyy......', '.....yyyyyy.....', 'yyyyyyyyyyyyyyyy',
+                '.yyyywyyyywyyyy.', '..yyykyyyykyyy..', '...yykyyyykyy...',
+                '....yyyyyyyy....', '....yyyyyyyy....', '...yyyyyyyyyy...',
+                '...yyyy..yyyy...', '..yyy......yyy..', '..yy........yy..',
+                '.yy..........yy.')),
             ('p_flower_art', (
                 '.....rrrrrr.....', '...rryyyyyyrr...', '..rryywwwwyyrr..',
                 '..ryywwkkwwyyr..', '..ryywwkkwwyyr..', '..rryywwwwyyrr..',

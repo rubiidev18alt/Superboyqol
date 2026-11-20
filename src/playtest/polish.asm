@@ -209,13 +209,19 @@ p_block_slots:
 ; give upgrades. All unlisted question blocks, including stacked neighbours,
 ; still take the normal coin path. $ff = no block; castles have no ? blocks.
 p_item_blocks:
-    db 34,13,177,13, 14,13,255,0, 89,13,255,0, 255,0,255,0
-    db 124,13,168,13, 164,7,255,0, 115,7,255,0, 255,0,255,0
-    db 74,13,255,0, 132,6,255,0, 89,13,255,0, 255,0,255,0
-    db 40,13,196,13, 80,13,255,0, 36,7,89,13, 255,0,255,0
+    ; Three (column,row) pairs per stage; row bit 7 designates a star.
+    db 34,13,177,13,124,128+13, 14,13,255,0,18,128+13
+    db 89,13,255,0,255,0,       255,0,255,0,255,0
+    db 124,13,168,13,154,128+13, 164,7,255,0,255,0
+    db 115,7,255,0,255,0,        255,0,255,0,255,0
+    db 74,13,255,0,86,128+6,    132,6,255,0,255,0
+    db 89,13,255,0,255,0,       255,0,255,0,255,0
+    db 40,13,196,13,110,128+13, 80,13,255,0,90,128+13
+    db 36,7,89,13,255,0,        255,0,255,0,255,0
 
-p_item_rise equ $eb27           ; remaining emergence pixels
-p_item_flower equ $e251         ; type latched on hit, not on collection
+p_item_rise equ $eb27
+p_item_kind equ $e251          ; 0 mushroom, $10 flower, 1 star
+p_star_time equ $eb28          ; 240 half-rate ticks (~8s NTSC)
 p_hit_question:
     push hl
     call sub_5c77               ; canonical left half; H/L = pixel X/Y
@@ -241,21 +247,24 @@ p_hit_question:
     or a
     jr nz,.coin
     ld a,(stage_index)
+    ld e,a
     add a,a
+    add a,e
     add a,a
     ld e,a
     ld d,0
     ld hl,p_item_blocks
     add hl,de
-    ld d,2
+    ld d,3
 .find:
     ld a,(hl)
-    cp $ff
-    jr z,.coin
     inc hl
+    cp $ff
+    jr z,.next
     cp b
     jr nz,.next
     ld a,(hl)
+    and $7f
     cp c
     jr z,.item
 .next:
@@ -266,10 +275,20 @@ p_hit_question:
     pop hl
     jp loc_4cd6
 .item:
+    ld a,(hl)
+    rlca
+    and 1
+    ld e,a
     pop hl
     ld a,($e04f)               ; dedicated item slot; don't spend a second
     or a                       ; authored block until the slot is free
     ret nz
+    ld a,e
+    or a
+    jr nz,.typed
+    ld a,(player_big)
+.typed:
+    ld (p_item_kind),a
     call sub_5c77
     ld ($e089),hl              ; rise from the spent block, then move
     call sub_4cf3
@@ -282,12 +301,15 @@ p_hit_question:
     ldir                       ; clear all six actor state bytes
     ld a,16
     ld (p_item_rise),a
-    ld a,(player_big)
-    ld (p_item_flower),a
+    ld a,(p_item_kind)
     or a
     ld a,9
     jr z,.colour
-    ld a,11
+    ld a,(p_item_kind)
+    cp 1
+    ld a,10
+    jr z,.colour
+    inc a
 .colour:
     ld ($e0bc),a
     xor a
@@ -311,9 +333,9 @@ p_item_tick:
     ld ($e0bb),a
     or a
     jr nz,.done
-    ld a,(p_item_flower)
-    or a
-    jr nz,.done
+    ld a,(p_item_kind)
+    cp $10
+    jr z,.done
     ld a,2                     ; native walker: right, reverse at walls, fall
     ld ($e051),a
 .done:
@@ -324,10 +346,26 @@ p_side_contact:
     ld a,(ix+0)
     cp $10
     jp z,p_collect_item
+    ld a,(p_star_time)
+    or a
+    jr nz,p_defeat
     ld a,($e377)
     or a
     jp z,loc_5565
     jp loc_554e
+
+p_top_contact:
+    ld a,(ix+0)
+    cp $10
+    jp z,p_collect_item
+    ld a,(p_star_time)
+    or a
+    ld a,(ix+0)
+    jp z,p_normal_stomp
+p_defeat:
+    ld (ix+0),0
+    ld (hl),$dc
+    jp loc_5537
 
 p_collect_item:
     ld a,(p_item_rise)
@@ -335,9 +373,17 @@ p_collect_item:
     jp nz,loc_5537
     ld (ix+0),0
     ld (hl),$dc
-    ld a,(p_item_flower)
+    ld a,(p_item_kind)
     or a
     jr z,.grow
+    cp 1
+    jr nz,.flower
+    ld a,240
+    ld (p_star_time),a
+    ld a,9
+    call shared.sound_effect
+    jp loc_5537
+.flower:
     ld a,(player_big)          ; hurt after flower spawned? regain size only
     ld (player_can_shoot),a
 .grow:
@@ -356,8 +402,11 @@ p_draw_item:
     add a,a
     ld e,a
     ld hl,p_mushroom_art
-    ld a,(p_item_flower)
+    ld a,(p_item_kind)
     or a
+    jr z,.shape
+    ld hl,p_star_art
+    dec a
     jr z,.shape
     ld hl,p_flower_art
 .shape:
@@ -386,3 +435,97 @@ p_draw_item:
     ret
 p_mushroom_art: ds 128,0       ; packed by the standalone asset builder
 p_flower_art: ds 128,0
+p_star_art: ds 128,0
+
+p_reset_motion:
+    xor a
+    ld (p_star_time),a
+    jp shared.reset_motion
+
+; One additional swept horizontal pixel per four ticks only when running
+; flat out. Never repeat vertical physics, jump input, or actor updates.
+p_run_tick:
+    ld a,(frame_counter)
+    bit 0,a
+    ret nz
+    ld hl,p_star_time
+    inc (hl)
+    dec (hl)
+    jr z,.run
+    dec (hl)
+.run:
+    and 3
+    ret nz
+    ld a,($e386)
+    or a
+    ret nz
+    ld a,(pad_held)
+    and $2c
+    cp $24
+    jr z,.left
+    cp $28
+    ret nz
+    ld a,(pad_held+2)
+    cp 32
+    ret nz
+    call probe_right
+    ret nz
+    ld hl,player_x
+    ld a,(hl)
+    cp $f4
+    ret nc
+    cp $63
+    jr c,.right
+    ld a,(scroll_at_end)
+    or a
+    jp z,dx_camera_step
+.right:
+    inc (hl)
+    ret
+.left:
+    ld a,(pad_held+1)
+    cp 32
+    ret nz
+    call probe_left
+    ret nz
+    ld hl,player_x
+    ld a,(hl)
+    cp 9
+    ret c
+    dec (hl)
+    ret
+
+p_draw_player:
+    ld a,(p_star_time)
+    or a
+    jp z,draw_player
+    ; Keep normal colours intact for the instant the timer expires.
+    ld a,($e0ac)
+    push af
+    ld a,($e0b4)
+    push af
+    ld a,(frame_counter)
+    and 24
+    rrca
+    rrca
+    rrca
+    ld hl,.inks
+    ld e,a
+    ld d,0
+    add hl,de
+    ld a,(hl)
+    ld ($e0ac),a
+    ld ($e0b4),a
+    call draw_player
+    pop af
+    ld ($e0b4),a
+    pop af
+    ld ($e0ac),a
+    ret
+.inks: db 11,3,13,9
+
+p_castle_contact:
+    ld a,(p_star_time)
+    or a
+    ret nz
+    jp hurt_player
