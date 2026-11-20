@@ -365,8 +365,6 @@ p_top_contact:
 p_defeat:
     ; Keep the actual actor slot (and camera-relative coordinates) until it
     ; leaves the screen. State 6 reserves it and removes all contact damage.
-    ld (ix+1),6
-    ld (ix+6),0               ; age in actor ticks
     inc hl
     ld a,(player_x)
     cp (hl)
@@ -375,10 +373,34 @@ p_defeat:
     jr c,.launch
     ld a,-3
 .launch:
+    call p_launch_actor
+    jp loc_5537                ; star score owns the impact audio too
+
+; Fire uses the projectile's direction at impact, not the player's current
+; facing. DE = vulnerable actor record, HL = projectile, IX = shot position.
+; Keep the existing impact/explosion and fireproof-enemy paths intact.
+p_fire_launch:
+    push ix
+    push de
+    pop ix
+    inc hl
+    inc hl
+    bit 0,(hl)
+    dec hl
+    dec hl
+    ld a,3
+    jr z,.launch
+    ld a,-3
+.launch:
+    call p_launch_actor
+    pop ix
+    jp loc_5458
+
+p_launch_actor:
+    ld (ix+1),6
+    ld (ix+6),0                ; age in actor ticks
     ld (ix+5),a
-    ld a,10
-    call shared.sound_effect
-    jp loc_5537
+    ret
 
 p_collect_item:
     ld a,(p_item_rise)
@@ -715,6 +737,20 @@ p_song_init:
     pop af
     jp shared.sound_init
 
+; No queue: a jump, coin or impact during invincibility must neither borrow
+; the third voice nor play late when normal audio returns.
+p_sfx_request:
+    push af
+    ld a,(p_star_time)
+    or a
+    jr nz,.discard
+    pop af
+    jp shared.loc_ac98
+.discard:
+    pop af
+    ei                         ; normal sound_effect return convention
+    ret
+
 p_star_song:
     push ix
     push bc
@@ -722,6 +758,16 @@ p_star_song:
     push hl
     xor a
     call shared.sound_init     ; reset envelopes, tempo and mixer under DI
+    xor a                      ; cancel an effect already playing on pickup
+    ld (sfx_channel),a
+    ld a,$9f                   ; mute any sustained PSG note until the new
+    out ($7f),a                ; score writes its first three pitches
+    ld a,$bf
+    out ($7f),a
+    ld a,$df
+    out ($7f),a
+    ld a,$ff
+    out ($7f),a
     ld hl,p_star_lead
     ld (music_channel_1+1),hl
     ld hl,p_star_bass

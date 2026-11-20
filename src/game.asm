@@ -3226,6 +3226,10 @@ loc_5432:
     jr z,loc_5458
     cp $09
     jr z,loc_5458
+    ifdef POLISH
+    jp p_fire_launch
+    ds $5458-$,0
+    else
     push de
     inc de
     ld a,$05
@@ -3239,6 +3243,7 @@ loc_5432:
     inc de
     ld (de),a
     pop de
+    endif
 
 loc_5458:
     ld a,$0a
@@ -3749,7 +3754,11 @@ tick_stage_clock:
     ld a,b
     cp $20
     ret nz
+    ifdef POLISH
+    call p_clock_period
+    else
     ld a,($e384)
+    endif
     ld ($fa25),a
     ld ($fa45),a
     ld ($fa65),a

@@ -88,6 +88,8 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
     int victim = -1, launch_x = 0, launch_y = 0, rise_px = 0, travel = 0, fall_px = 0;
     unsigned spawns = 0, mushroom_trip = 0, flower_ticks = 0;
     bool active = false, mushroom_collected = false;
+    bool fired = false, shot_impact = false, shot_flipped = false, shot_retired = false;
+    int shot_slot = -1, shot_x = 0, shot_y = 0, shot_dir = 0, shot_rise = 0, shot_travel = 0;
     unsigned frame = 0, clears = 0;
     int count, stage = -1;
     bool stage_visible = false;
@@ -128,6 +130,7 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
                 }
                 unsigned timer = ram[0xb28];
                 if (timer) {
+                    if (ram[0x1a80]) return 1; /* even jump/impact SFX must leave voice 3 alone */
                     if (!saw_star || expired || ram[0x372] != before_size || ram[0x373]) return 1;
                     if (!protected_frames && timer < 239) return 1;
                     ++protected_frames;
@@ -139,6 +142,8 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
                         unsigned pc = ram[0x1a21+32*ch] + 256*ram[0x1a22+32*ch];
                         /* The star score is fixed ROM; ordinary stage scores are slot 2. */
                         if (pc < 0x100 || pc >= 0x144e) return 1;
+                        /* Allow the startup tempo opcode, then check across every stage clock tick. */
+                        if (protected_frames > 4 && ram[0x1a25+32*ch] != 14400/248) return 1;
                         notes[ch] += pc != last_pc[ch];
                         last_pc[ch] = pc;
                     }
@@ -197,6 +202,29 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
                     mushroom_collected = ram[0x372] && !ram[0x373];
                 }
                 active = now;
+                if (ram[0xb28]) return 1;  /* this knockout must be by a shot, not a star */
+                if (ram[0x373] && ram[0x80] == 10) fired = true;
+                for (int j = 0; fired && j < 6; ++j) {
+                    int obj = 0x56 + 7*j;
+                    bool flying = ram[obj] && ram[obj+1] == 6;
+                    int wx = 8*ram[0x235] + ram[0x8c+2*j], y = ram[0x8b+2*j];
+                    if (flying && shot_slot < 0) {
+                        if (ram[0x80] != 10 && ram[0x80] != 11) return 1;
+                        shot_slot = j; shot_x = wx; shot_y = y;
+                        shot_dir = (ram[0x82]&1) ? -1 : 1;
+                        if ((int8_t)ram[obj+5] != 3*shot_dir) return 1;
+                    }
+                    if (shot_slot != j) continue;
+                    if (!ram[obj]) shot_retired = true;
+                    if (flying) {
+                        /* A frame may end between launching the actor and marking the shot spent. */
+                        if (ram[0x80] == 11 && ram[obj+6] <= 1) shot_impact = true;
+                        int sl = j < 4 ? 10+2*j : 18+4*(j-4);
+                        shot_flipped |= (ram[0xd01+3*sl]&1) != 0;
+                        if (shot_y-y > shot_rise) shot_rise = shot_y-y;
+                        if (shot_dir*(wx-shot_x) > shot_travel) shot_travel = shot_dir*(wx-shot_x);
+                    }
+                }
                 continue;
             }
             if (ram[0x46] != stage) {
@@ -226,7 +254,10 @@ static int replay(FILE *movie, const uint8_t *ram, bool items, bool star) {
     }
     if (items) {
         if (fields != EOF || ferror(movie) || spawns != 2 || !mushroom_collected ||
-            mushroom_trip < 16 || flower_ticks < 16 || active || !ram[0x373]) return 1;
+            mushroom_trip < 16 || flower_ticks < 16 || active || !ram[0x373] ||
+            !shot_impact || !shot_retired || !shot_flipped || shot_rise < 16 || shot_travel < 24) return 1;
+        printf("Fireball: hit, flip, %d px rise, %d px travel in shot direction, and despawn.\n",
+               shot_rise, shot_travel);
         printf("Fixed 1-1 pickups: mushroom travelled %u px; flower stayed put for %u frames; fire enabled.\n",
                mushroom_trip, flower_ticks);
         return 0;

@@ -1,6 +1,6 @@
-# Generic polish playtest (RC5)
+# Generic polish playtest (RC6)
 
-[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc5.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
+[Download the standalone SMS ROM](../releases/superboy-generic-polish-rc6.sms) · [Watch the opening with game audio](polish-opening.mp4) · [Stable v0.3.1](generic.md)
 
 This build keeps the balanced Generic layouts. Try running at full speed and
 pressing the opposite direction, then try the same turn near a ledge. The
@@ -33,7 +33,7 @@ for **480 gameplay ticks** (about eight seconds on NTSC). It doesn’t grant
 size or fire, and pits and timeouts still work normally. Protection ends
 when the timer expires or a stage reloads.
 
-[Watch three knockouts with game audio](polish-star-comet.mp4). In RC5:
+[Watch the fast star theme and a fireball knockout with game audio](polish-star-fire.mp4).
 
 - **Colour:** the player cycles through eight two-colour palettes, one every
   two gameplay ticks. The rest of the screen keeps its usual colours.
@@ -41,11 +41,14 @@ when the timer expires or a stage reloads.
   it away from the player. It rises, falls, and can’t hurt the player or
   block a projectile during the arc. Tall enemies flip as a whole body.
 - **Music:** *Comet Run* is an original four-bar PSG loop with a quick lead,
-  octave bass and a quieter offbeat counterline. Impacts and jumps can borrow
-  the third voice. At expiry the stage theme restarts; scene changes select
-  their own music normally.
+  octave bass and a quieter offbeat counterline. In RC6 all three staves
+  play at tempo 248 instead of 184. The stage clock no longer slows them
+  down every 32 ticks. Pickup cuts off the previous sound; jumps, coins and
+  impacts cannot borrow a voice or queue up for later. At expiry the stage
+  theme restarts and ordinary sound effects work again.
 
-The star regression observes all three score channels, colour changes, an
+The star regression checks all three score channels keep their fast tempo and
+the effects voice stays inactive. It also observes colour changes, an
 inverted enemy rising 30 px and travelling 78 px horizontally, the return
 of the stage music, and an enemy damaging the player after expiry.
 
@@ -62,19 +65,24 @@ phase, or the order in which you hit blocks. Death/retry restores them.
 - **Big or already able to shoot:** a fire flower rises and stays on the
   block. Collect it while big to enable fire. If you took damage after it
   appeared, collecting it restores size instead.
+- **Firing:** press **2** with the flower to shoot. A fireball bursts on
+  impact; a vulnerable enemy flips upside down and arcs in the shot’s
+  direction, even if the player has turned around. Fireproof enemies still
+  stop the shot without being knocked back.
 - The block is spent when it releases its item. The game has one pickup
   slot: hitting another upgrade block while that slot is occupied leaves
   the second block intact rather than paying out a coin or deleting the item.
 
 [Watch the mushroom and fire flower pickups](polish-power-ups.mp4). The
 controller-only regression collects both in 1-1: it observes the mushroom
-travel 72 pixels and the emerged flower stay still for 76 frames while the
-camera moves. The asset build also checks that every listed location really
+travel 72 pixels and the emerged flower stay still for 86 frames while the
+camera moves, then a fireball launching an enemy 30 pixels up and 78 pixels
+horizontally. The asset build also checks that every listed location really
 contains both halves of a question block.
 
 ## Measured on Genesis Plus GX (NTSC-U)
 
-| Same cold boot and input | v0.3.1 | RC5 |
+| Same cold boot and input | v0.3.1 | RC6 |
 | --- | ---: | ---: |
 | Start press to active 1-1 | 38 frames | 20 frames |
 | First leftward pixel after reversing a full rightward run | frame 18 | frame 10 |
@@ -97,18 +105,18 @@ The card itself (world, player and life count) is still displayed.
 make polish                             # build/superboy-polish.sms
 make verify generic                     # stock still matches its original
 cmp build/superboy-generic.sms releases/superboy-generic-v0.3.1.sms
-cmp build/superboy-polish.sms releases/superboy-generic-polish-rc5.sms
+cmp build/superboy-polish.sms releases/superboy-generic-polish-rc6.sms
 make polish-test GPGX=/path/to/Genesis-Plus-GX
 build/replay releases/superboy-generic-v0.3.1.sms --opening  # A/B baseline
 ```
 
 Use GNU Make, SjASMPlus 1.21.1, Python 3 and the [pinned emulator for tests](playthrough.md).
-RC5 SHA-256: `ad88fd55e236b3163519ff9468692f11fdb7f36729a120a669b14a6da97a0123`.
+RC6 SHA-256: `f1d1c9e4fb17cacd575ade4ad84ac48aa9e5357dcfccf690829060311351d1e1`.
 The focused checks cover movement, the opening benchmark, two rendered question-block colour cycles, fine scrolling with
 a fixed HUD, scrolling enemies and coin popups, and five timeouts through
 game over and attract mode. The controller recording
 `tests/polish-all-stages.pad` then clears all 16 stages from reset: the recording ends back at 1-1 on
-frame 37,298 with five lives. This is a different route from v0.3.1’s recording,
+frame 43,169 with five lives. This is a different route from v0.3.1’s recording,
 not a benchmark of total loading time. Physical hardware has not been tested.
 
 ## Next playtest priorities

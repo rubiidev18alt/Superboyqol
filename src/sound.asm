@@ -10,7 +10,11 @@ sound_init:
     jp loc_abfb
 
 sound_effect:
+    ifdef POLISH
+    jp p_sfx_request
+    else
     jp loc_ac98
+    endif
 
 loc_a80c:
     ld a,(audio_enabled)

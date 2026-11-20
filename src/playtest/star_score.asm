@@ -1,8 +1,19 @@
 ; Comet Run — four bars of original PSG music. 1/16th-note lead pickups,
 ; alternating octave bass and clipped offbeats; each staff spans 16 beats.
-; Periods come from NTSC clock/(32*Hz). Voice 3 yields to impact/jump cues.
+; Periods come from NTSC clock/(32*Hz). All three voices belong to the star for its entire duration.
+p_star_tempo equ 248
+
+; The low-time clock reasserts its normal whole-note period every 32 ticks.
+; Keep its countdown running, but never let it slow the star arrangement.
+p_clock_period:
+    ld a,(p_star_time)
+    or a
+    ld a,14400/p_star_tempo    ; same conversion as the driver's tempo opcode
+    ret nz
+    ld a,($e384)
+    ret
 p_star_lead:
-    tempo 184
+    tempo p_star_tempo
     pitch_envelope 0
     volume_envelope 1
     db 8,13
@@ -40,7 +51,7 @@ p_star_lead:
     db $4b,$4c
     dw .loop
 p_star_bass:
-    tempo 184
+    tempo p_star_tempo
     pitch_envelope 0
     volume_envelope 0
     db 9,11
@@ -60,7 +71,7 @@ p_star_bass:
     db $4b,$4c
     dw .loop
 p_star_echo:
-    tempo 184
+    tempo p_star_tempo
     pitch_envelope 0
     volume_envelope 1
     db 10,9
